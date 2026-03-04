@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from src.gemini.init import try_gemini_inference
+from src.util.init import try_gemini_inference
 import json
 
 genai_router = APIRouter(prefix="/genai", tags=["genai"])

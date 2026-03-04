@@ -1,4 +1,4 @@
-from src.gemini.config import genai_client
+from src.configs.genai import genai_client
 from google.genai import types
 
 def try_gemini_inference(prompt: str) -> str:
