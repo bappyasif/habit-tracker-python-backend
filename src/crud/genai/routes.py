@@ -2,6 +2,8 @@ from fastapi import APIRouter
 
 from src.util.init import try_gemini_inference
 import json
+from src.models.api import WeeklySummaryRequest, WeeklySummaryResponse, DailyHabitAiInferenceRequest, DailyHabitAiInferenceResponse
+
 
 genai_router = APIRouter(prefix="/genai", tags=["genai"])
 
@@ -14,11 +16,18 @@ async def genai_health_check():
         return {"status": "genai router is unhealthy", "error": str(e)}
     # return {"status": "genai router is healthy"}
 
-@genai_router.post("/weekly-summary")
-async def genai_weekly_summary(user_input: dict[str, str]):
-    hobby = user_input.get("hobbyName")
-    description = user_input.get("hobbyDescription")
-    feedback = user_input.get("hobbyFeedback")
+@genai_router.post(
+        "/weekly-summary", 
+        response_model=WeeklySummaryResponse
+)
+
+async def genai_weekly_summary(user_input: WeeklySummaryRequest): 
+    # hobby = user_input.get("hobbyName")
+    # description = user_input.get("hobbyDescription")
+    # feedback = user_input.get("hobbyFeedback")
+    hobby =  user_input.hobbyName
+    description = user_input.hobbyDescription
+    feedback = user_input.hobbyFeedback
     try:
         # lets write a weekly summarizing prompt that will return a json response back to user after gemini inference
         prompt = f"""
@@ -26,7 +35,7 @@ async def genai_weekly_summary(user_input: dict[str, str]):
         Given the following hobby description, provide a weekly summary of the hobby.
         Return the summary in JSON format with the following properties:
         - summary: Provide a weekly summary of the hobby. use a short and concise manner
-        Hobby Description: {description}
+        Hobby Description: {description}WeeklySummaryRequest
         Hobby Name: {hobby}
         Feedback: {feedback}
         """
@@ -43,6 +52,7 @@ async def genai_weekly_summary(user_input: dict[str, str]):
             data = json.loads(json_string)
             print(data, data["summary"])
             return {"response": data}
+            # return {"summary": data["summary"]}
         except json.JSONDecodeError as e:
             print("JSON Error:", e)
 
@@ -50,11 +60,17 @@ async def genai_weekly_summary(user_input: dict[str, str]):
         return {"status": "genai router is unhealthy", "error": str(e)}
 
 
-@genai_router.post("/inference")
-async def genai_inference(user_input: dict[str, str]):
-    hobby = user_input.get("hobby")
-    description = user_input.get("description")
-    feedback = user_input.get("feedback")
+@genai_router.post("/inference", response_model=DailyHabitAiInferenceResponse)
+async def genai_inference(
+    # user_input: dict[str, str]
+    user_input: DailyHabitAiInferenceRequest
+):
+    # hobby = user_input.get("hobby")
+    # description = user_input.get("description")
+    # feedback = user_input.get("feedback")
+    hobby = user_input.hobby
+    description = user_input.description
+    feedback = user_input.feedback
     try:
         print(user_input)
         
