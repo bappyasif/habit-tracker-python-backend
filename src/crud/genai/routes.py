@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from src.util.init import try_gemini_inference
+from src.util.genai import try_gemini_inference
 import json
 from src.models.api import WeeklySummaryRequest, WeeklySummaryResponse, DailyHabitAiInferenceRequest, DailyHabitAiInferenceResponse
 
