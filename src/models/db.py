@@ -1,7 +1,7 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Enum as SQLEnum
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
-from enum import Enum
+from enum import Enum as PyEnum
 
 Base = declarative_base()
 
@@ -35,6 +35,12 @@ class HabitSuccess(Base):
 
     habit = relationship('Habit', back_populates='success_definition')
 
+class HabitFrequency(PyEnum):
+    DAILY = 'daily'
+    WEEKLY = 'weekly'
+    MONTHLY = 'monthly'
+    YEARLY = 'yearly'
+
 class Habit(Base):
     __tablename__ = 'habit'
 
@@ -47,4 +53,7 @@ class Habit(Base):
     steps = relationship('HabitStep', back_populates='habit')
     measurement = relationship('HabitMeasurement', back_populates='habit')
     success_definition = relationship('HabitSuccess', back_populates='habit')
-    frequency = Column(Enum('daily', 'weekly', 'monthly', 'yearly'), nullable=False)
+    # frequency = Column(Enum('daily', 'weekly', 'monthly', 'yearly'), nullable=False)
+    # frequency = Column(Enum(HabitFrequency), nullable=False)
+    frequency = Column(SQLEnum(HabitFrequency), nullable=False)
+

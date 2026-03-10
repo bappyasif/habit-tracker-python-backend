@@ -19,6 +19,10 @@ server.add_middleware(
     allow_headers=["*"],
 )
 
+# initialize db
+from src.util.db import create_tables
+create_tables()
+
 # Routes
 # server.include_router(genai_router)
 
