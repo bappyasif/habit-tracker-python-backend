@@ -26,7 +26,7 @@ class Habit(BaseModel):
     duration: int
     steps: list[HabitStep]
     measurement: HabitMeasurement
-    successDefinition: HabitSuccess
+    success_definition: HabitSuccess
     frequency: Literal["daily", "weekly", "monthly", "yearly"]
 
 class Week(BaseModel):

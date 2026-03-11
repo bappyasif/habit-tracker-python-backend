@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.crud.genai.routes import genai_router
+from src.crud.habits.routes import habits_router
 
 server = FastAPI(
     title="Habit Tracker Backend",
@@ -29,6 +30,9 @@ create_tables()
 # Versioned Routes
 server.include_router(genai_router, prefix="/api/v1")
 
+server.include_router(habits_router, prefix="/api/v1")
+
+# Health Check
 @server.get("/")
 async def root():
     return {"message": "Hello World, from FastAPI!"}
