@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Enum as SQLEnum
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Enum as SQLEnum, DateTime
+from datetime import datetime
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 from enum import Enum as PyEnum
@@ -25,15 +26,15 @@ class HabitMeasurement(Base):
 
     habit = relationship('Habit', back_populates='measurement')
 
-class HabitSuccess(Base):
-    __tablename__ = 'habit_success'
+# class HabitSuccess(Base):
+#     __tablename__ = 'habit_success'
 
-    id = Column(Integer, primary_key=True)
-    habit_id = Column(Integer, ForeignKey('habit.id'))
-    success_definition = Column(String)
-    # add any other fields you need for the HabitSuccess
+#     id = Column(Integer, primary_key=True)
+#     habit_id = Column(Integer, ForeignKey('habit.id'))
+#     success_definition = Column(String)
+#     # add any other fields you need for the HabitSuccess
 
-    habit = relationship('Habit', back_populates='success_definition')
+#     habit = relationship('Habit', back_populates='success_definition')
 
 class HabitFrequency(PyEnum):
     DAILY = 'daily'
@@ -47,12 +48,14 @@ class Habit(Base):
     id = Column(Integer, primary_key=True)
     title = Column(String)
     description = Column(String)
-    created_at = Column(String)
-    updated_at = Column(String)
+    # use callable defaults so the timestamp is evaluated at insert time
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     duration = Column(Integer)
     steps = relationship('HabitStep', back_populates='habit')
     measurement = relationship('HabitMeasurement', back_populates='habit')
-    success_definition = relationship('HabitSuccess', back_populates='habit')
+    # don't expose a `success_definition` relationship on Habit for now
+    # success_definition = relationship('HabitSuccess', back_populates='habit')
     # frequency = Column(Enum('daily', 'weekly', 'monthly', 'yearly'), nullable=False)
     # frequency = Column(Enum(HabitFrequency), nullable=False)
     frequency = Column(SQLEnum(HabitFrequency), nullable=False)

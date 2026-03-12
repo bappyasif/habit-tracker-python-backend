@@ -6,9 +6,10 @@ from src.models.db import (
     Habit as HabitModel,
     HabitStep as HabitStepModel,
     HabitMeasurement as HabitMeasurementModel,
-    HabitSuccess as HabitSuccessModel,
+    # HabitSuccess as HabitSuccessModel,
     HabitFrequency,
 )
+# from datetime import datetime
 
 habits_router = APIRouter(prefix="/habits", tags=["habits"])
 
@@ -30,6 +31,7 @@ async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db)):
     # Convert frequency string to HabitFrequency enum if provided
     freq_val = data.get("frequency")
     freq_enum = None
+
     if freq_val is not None:
         try:
             freq_enum = HabitFrequency(freq_val)
@@ -40,10 +42,14 @@ async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db)):
     db_habit = HabitModel(
         title=data.get("title"),
         description=data.get("description"),
-        created_at=data.get("created_at"),
-        updated_at=data.get("updated_at"),
+        # created_at=data.get("created_at"),
+        # updated_at=data.get("updated_at"),
+        # created_at=datetime.today(),
+        # updated_at=data.get("createdAt"),
         duration=data.get("duration"),
         frequency=freq_enum,
+        # success_definition={"enabled": False, "percentage": 0.0},
+        # success_definition=data.get("successDefinition"),
     )
 
     # Convert and attach steps (store serialized dict/string if schema differs)
@@ -60,15 +66,16 @@ async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db)):
         db_habit.measurement.append(db_measure)
 
     # Convert and attach success definition
-    success = data.get("success_definition")
-    if success:
-        db_success = HabitSuccessModel(success_definition=str(success))
-        db_habit.success_definition.append(db_success)
+    # success = data.get("success_definition")
+    # success = data.get("successDefinition")
+    # if success:
+    #     db_success = HabitSuccessModel(success_definition=str(success))
+    #     db_habit.success_definition.append(db_success)
 
     db.add(db_habit)
     db.commit()
     db.refresh(db_habit)
-    return db_habit
+    return {"message": "Habit created successfully", "habit": db_habit}
 
 
 @habits_router.put("/update")

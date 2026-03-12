@@ -13,20 +13,20 @@ class HabitStep(BaseModel):
     time: str
     completed: bool
 
-class HabitSuccess(BaseModel):
-    enabled: bool
-    percentage: float
+# class HabitSuccess(BaseModel):
+#     enabled: bool
+#     percentage: float
 
 class Habit(BaseModel):
     id: int
     title: str
     description: str
-    created_at: str
-    updated_at: str
+    # created_at: str
+    # updated_at: str
     duration: int
     steps: list[HabitStep]
     measurement: HabitMeasurement
-    success_definition: HabitSuccess
+    # success_definition: HabitSuccess
     frequency: Literal["daily", "weekly", "monthly", "yearly"]
 
 class Week(BaseModel):
