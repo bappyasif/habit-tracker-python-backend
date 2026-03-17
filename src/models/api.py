@@ -29,6 +29,29 @@ class Habit(BaseModel):
     # success_definition: HabitSuccess
     frequency: Literal["daily", "weekly", "monthly", "yearly"]
 
+# {
+#         habitId: number | string,
+#         weeks: {
+#             weekStart: Date,
+#             weekEnd: Date,
+#             totalCompleted: number,
+#             totalSteps: number,
+#             percentile: number, // 0-100 percentage
+#         }[]
+#     }
+
+class WeekTracking(BaseModel):
+    weekStart: datetime
+    weekEnd: datetime
+    totalCompleted: float
+    totalSteps: int
+    percentile: float
+
+class HabitTimeline(BaseModel):
+    habitId: int
+    weeks: list[WeekTracking]
+
+
 class Week(BaseModel):
     weekStart: datetime
     weekEnd: datetime
