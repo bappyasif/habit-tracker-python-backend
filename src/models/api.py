@@ -47,7 +47,11 @@ class WeekTracking(BaseModel):
     totalSteps: int
     percentile: float
 
-class HabitTimeline(BaseModel):
+class HabitTimelineTrackingRequest(BaseModel):
+    habitId: int
+    week: WeekTracking
+
+class HabitTimelineTrackingResponse(BaseModel):
     habitId: int
     weeks: list[WeekTracking]
 
