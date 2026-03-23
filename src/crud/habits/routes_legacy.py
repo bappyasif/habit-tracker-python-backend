@@ -6,7 +6,7 @@ from src.models.db import (
     Habit as HabitModel,
     HabitStep as HabitStepModel,
     HabitMeasurement as HabitMeasurementModel,
-    HabitSuccess as HabitSuccessModel,
+    # HabitSuccess as HabitSuccessModel,
     HabitFrequency,
 )
 import json
@@ -78,31 +78,6 @@ async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db)):
         db_measure = HabitMeasurementModel(measurement=json.dumps(m_dict))
         db_habit.measurement.append(db_measure)
 
-    # Attach success_definition (optional) as HabitSuccess (single object)
-    success_def = data.get("success_definition") or data.get("successDefinition")
-    if success_def is not None:
-        if hasattr(success_def, "dict"):
-            sd = success_def.dict()
-        elif isinstance(success_def, dict):
-            sd = success_def
-        else:
-            try:
-                sd = dict(success_def)
-            except Exception:
-                sd = {"enabled": False, "percentage": 0}
-
-        # ensure basic types
-        sd_clean = {
-            "enabled": bool(sd.get("enabled", False)),
-            "percentage": int(sd.get("percentage", 0)) if sd.get("percentage") is not None else 0,
-        }
-
-        db_success = HabitSuccessModel(success_definition=json.dumps(sd_clean))
-        # assign single related object
-        db_habit.success_definition = db_success
-
-    # (old single-string success_definition handling removed)
-
     # persist the habit and its related child rows
     db.add(db_habit)
     db.commit()
@@ -117,12 +92,9 @@ async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db)):
         "frequency": db_habit.frequency.value if getattr(db_habit, "frequency", None) is not None else None,
         "steps": [],
         "measurement": None,
-        "success_definition": None,
         "created_at": db_habit.created_at.isoformat() if getattr(db_habit, "created_at", None) else None,
         "updated_at": db_habit.updated_at.isoformat() if getattr(db_habit, "updated_at", None) else None,
     }
-
-    # debug: success_definition is handled as a single related object (enabled/percentage)
 
     for s in db_habit.steps or []:
         try:
@@ -137,17 +109,6 @@ async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db)):
             resp["measurement"] = json.loads(db_habit.measurement[0].measurement)
         except Exception:
             resp["measurement"] = db_habit.measurement[0].measurement
-
-    # include success_definition in response (stored as JSON string)
-    sd_obj = getattr(db_habit, "success_definition", None)
-    if sd_obj and getattr(sd_obj, "success_definition", None):
-        try:
-            resp["success_definition"] = json.loads(sd_obj.success_definition)
-        except Exception:
-            # fallback: return raw string
-            resp["success_definition"] = sd_obj.success_definition
-    else:
-        resp["success_definition"] = {"enabled": False, "percentage": 0}
 
     return {"message": "Habit created successfully", "habit": resp}
 # async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db)):
@@ -249,35 +210,6 @@ async def update_habit(habit_id: int, habit_data: HabitApiSchema, db: Session = 
             except Exception:
                 # ignore invalid enum value here; let DB/validation handle it later
                 pass
-        elif key == "success_definition":
-            # value expected to be a dict or pydantic model with enabled and percentage
-            sd = None
-            if value is None:
-                sd = None
-            elif hasattr(value, "dict"):
-                sd = value.dict()
-            elif isinstance(value, dict):
-                sd = value
-            else:
-                try:
-                    sd = dict(value)
-                except Exception:
-                    sd = None
-
-                if sd is None:
-                    # reset existing to defaults (store JSON string)
-                    if habit.success_definition:
-                        habit.success_definition.success_definition = json.dumps({"enabled": False, "percentage": 0})
-                else:
-                    sd_clean = {
-                        "enabled": bool(sd.get("enabled", False)),
-                        "percentage": int(sd.get("percentage", 0)) if sd.get("percentage") is not None else 0,
-                    }
-
-                    if habit.success_definition:
-                        habit.success_definition.success_definition = json.dumps(sd_clean)
-                    else:
-                        habit.success_definition = HabitSuccessModel(success_definition=json.dumps(sd_clean))
     
     # habit.title = habit_data.title
     # habit.description = habit_data.description
