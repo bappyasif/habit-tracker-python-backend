@@ -22,7 +22,25 @@ async def habits_health_check():
 @habits_router.get("/all")
 async def get_all_habits(db: Session = Depends(get_db)):
     habits = db.query(HabitModel).all()
-    return {"habits": habits}
+    # let serialize HabitModel for frontend as per POST request for each habit model data
+    modified_habits = []
+    for habit in habits:
+        modified_habit = {
+            "id": habit.id,
+            "title": habit.title,
+            "description": habit.description,
+            "duration": habit.duration,
+            "frequency": habit.frequency.value,
+            "steps": [json.loads(step.step) for step in habit.steps],
+            "measurement": json.loads(habit.measurement[0].measurement) if habit.measurement else None,
+            "successDefinition": json.loads(habit.success_definition.success_definition) if habit.success_definition else None,
+            "createdAt": habit.created_at.isoformat(),
+            "updatedAt": habit.updated_at.isoformat(),
+        }
+        modified_habits.append(modified_habit)
+        
+    return {"habits": modified_habits}
+    # return {"habits": habits, "modified_habits": modified_habits}
 
 @habits_router.post("/create")
 async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db)):
@@ -117,9 +135,9 @@ async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db)):
         "frequency": db_habit.frequency.value if getattr(db_habit, "frequency", None) is not None else None,
         "steps": [],
         "measurement": None,
-        "success_definition": None,
-        "created_at": db_habit.created_at.isoformat() if getattr(db_habit, "created_at", None) else None,
-        "updated_at": db_habit.updated_at.isoformat() if getattr(db_habit, "updated_at", None) else None,
+        "successDefinition": None,
+        "createdAt": db_habit.created_at.isoformat() if getattr(db_habit, "created_at", None) else None,
+        "updatedAt": db_habit.updated_at.isoformat() if getattr(db_habit, "updated_at", None) else None,
     }
 
     # debug: success_definition is handled as a single related object (enabled/percentage)
@@ -142,12 +160,12 @@ async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db)):
     sd_obj = getattr(db_habit, "success_definition", None)
     if sd_obj and getattr(sd_obj, "success_definition", None):
         try:
-            resp["success_definition"] = json.loads(sd_obj.success_definition)
+            resp["successDefinition"] = json.loads(sd_obj.success_definition)
         except Exception:
             # fallback: return raw string
-            resp["success_definition"] = sd_obj.success_definition
+            resp["successDefinition"] = sd_obj.success_definition
     else:
-        resp["success_definition"] = {"enabled": False, "percentage": 0}
+        resp["successDefinition"] = {"enabled": False, "percentage": 0}
 
     return {"message": "Habit created successfully", "habit": resp}
 # async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db)):
