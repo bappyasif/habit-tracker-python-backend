@@ -249,9 +249,69 @@ async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db)):
 #     return {"message": "Habit created successfully", "habit": db_habit}
 
 
+# @habits_router.put("/update")
+# async def update_habit(habit_id: int, habit_data: HabitApiSchema, db: Session = Depends(get_db)):
+#     habit = db.query(HabitModel).filter(HabitModel.id == habit_id).first()
+#     if not habit:
+#         return {"error": "Habit not found"}
+#     # Update scalar fields only; nested relationships require separate handling
+#     # use Pydantic's dict to get only set fields
+#     update_data = habit_data.dict(exclude_unset=True)
+
+#     for key, value in update_data.items():
+#         if key in {"title", "description", "created_at", "updated_at", "duration"}:
+#             setattr(habit, key, value)
+#         elif key == "frequency":
+#             try:
+#                 setattr(habit, "frequency", HabitFrequency(value))
+#             except Exception:
+#                 # ignore invalid enum value here; let DB/validation handle it later
+#                 pass
+#         elif key == "success_definition":
+#             # value expected to be a dict or pydantic model with enabled and percentage
+#             sd = None
+#             if value is None:
+#                 sd = None
+#             elif hasattr(value, "dict"):
+#                 sd = value.dict()
+#             elif isinstance(value, dict):
+#                 sd = value
+#             else:
+#                 try:
+#                     sd = dict(value)
+#                 except Exception:
+#                     sd = None
+
+#                 if sd is None:
+#                     # reset existing to defaults (store JSON string)
+#                     if habit.success_definition:
+#                         habit.success_definition.success_definition = json.dumps({"enabled": False, "percentage": 0})
+#                 else:
+#                     sd_clean = {
+#                         "enabled": bool(sd.get("enabled", False)),
+#                         "percentage": int(sd.get("percentage", 0)) if sd.get("percentage") is not None else 0,
+#                     }
+
+#                     if habit.success_definition:
+#                         habit.success_definition.success_definition = json.dumps(sd_clean)
+#                     else:
+#                         habit.success_definition = HabitSuccessModel(success_definition=json.dumps(sd_clean))
+    
+#     # habit.title = habit_data.title
+#     # habit.description = habit_data.description
+#     # habit.duration = habit_data.duration
+#     # habit.frequency = habit_data.frequency
+#     # habit.steps = habit_data.steps
+#     # habit.measurement = habit_data.measurement
+#     # habit.success_definition = habit_data.success_definition
+
+#     db.commit()
+#     return {"message": "Habit updated successfully"}
+
 @habits_router.put("/update")
-async def update_habit(habit_id: int, habit_data: HabitApiSchema, db: Session = Depends(get_db)):
-    habit = db.query(HabitModel).filter(HabitModel.id == habit_id).first()
+async def update_habit(habit_data: HabitApiSchema, db: Session = Depends(get_db)):
+    habit = db.query(HabitModel).filter(HabitModel.id == habit_data.id).first()
+    
     if not habit:
         return {"error": "Habit not found"}
     # Update scalar fields only; nested relationships require separate handling
@@ -259,31 +319,88 @@ async def update_habit(habit_id: int, habit_data: HabitApiSchema, db: Session = 
     update_data = habit_data.dict(exclude_unset=True)
 
     for key, value in update_data.items():
+        # never overwrite the id
+        if key == "id":
+            continue
+
+        # direct scalar fields
         if key in {"title", "description", "created_at", "updated_at", "duration"}:
             setattr(habit, key, value)
+
         elif key == "frequency":
+            # convert to enum safely
             try:
                 setattr(habit, "frequency", HabitFrequency(value))
             except Exception:
-                # ignore invalid enum value here; let DB/validation handle it later
+                # ignore invalid enum values here; validation can handle it upstream
                 pass
-        elif key == "success_definition":
-            # value expected to be a dict or pydantic model with enabled and percentage
-            sd = None
-            if value is None:
-                sd = None
-            elif hasattr(value, "dict"):
-                sd = value.dict()
-            elif isinstance(value, dict):
-                sd = value
-            else:
+
+        elif key == "steps":
+            # Expect a list of step objects/dicts; replace existing collection
+            # Clear existing steps and append new ORM HabitStepModel instances
+            try:
+                habit.steps.clear()
+            except Exception:
+                # fallback - assign new list if clear not supported
+                habit.steps = []
+
+            for s in (value or []):
+                if hasattr(s, "dict"):
+                    s_dict = s.dict()
+                elif isinstance(s, dict):
+                    s_dict = s
+                else:
+                    try:
+                        s_dict = dict(s)
+                    except Exception:
+                        s_dict = {"value": str(s)}
+
+                db_step = HabitStepModel(step=json.dumps(s_dict))
+                habit.steps.append(db_step)
+
+        elif key == "measurement":
+            # measurement is represented as a (single) related object in the DB
+            try:
+                habit.measurement.clear()
+            except Exception:
+                habit.measurement = []
+
+            m = value
+            if m is not None:
+                if hasattr(m, "dict"):
+                    m_dict = m.dict()
+                elif isinstance(m, dict):
+                    m_dict = m
+                else:
+                    try:
+                        m_dict = dict(m)
+                    except Exception:
+                        m_dict = {"value": str(m)}
+
+                db_measure = HabitMeasurementModel(measurement=json.dumps(m_dict))
+                habit.measurement.append(db_measure)
+
+        elif key in {"success_definition", "successDefinition"}:
+            sd_val = value
+            if sd_val is None:
+                # clear the relation
                 try:
-                    sd = dict(value)
+                    habit.success_definition = None
                 except Exception:
-                    sd = None
+                    pass
+            else:
+                if hasattr(sd_val, "dict"):
+                    sd = sd_val.dict()
+                elif isinstance(sd_val, dict):
+                    sd = sd_val
+                else:
+                    try:
+                        sd = dict(sd_val)
+                    except Exception:
+                        sd = None
 
                 if sd is None:
-                    # reset existing to defaults (store JSON string)
+                    # reset to defaults
                     if habit.success_definition:
                         habit.success_definition.success_definition = json.dumps({"enabled": False, "percentage": 0})
                 else:
@@ -296,22 +413,36 @@ async def update_habit(habit_id: int, habit_data: HabitApiSchema, db: Session = 
                         habit.success_definition.success_definition = json.dumps(sd_clean)
                     else:
                         habit.success_definition = HabitSuccessModel(success_definition=json.dumps(sd_clean))
-    
-    # habit.title = habit_data.title
-    # habit.description = habit_data.description
-    # habit.duration = habit_data.duration
-    # habit.frequency = habit_data.frequency
-    # habit.steps = habit_data.steps
-    # habit.measurement = habit_data.measurement
-    # habit.success_definition = habit_data.success_definition
+
+        else:
+            # fallback: try to set attribute if model has it
+            if hasattr(habit, key):
+                try:
+                    setattr(habit, key, value)
+                except Exception:
+                    # ignore anything we can't set directly
+                    pass
 
     db.commit()
+    # refresh to bring ORM relationships up-to-date if caller needs them
+    try:
+        db.refresh(habit)
+    except Exception:
+        pass
+
     return {"message": "Habit updated successfully"}
 
 
-@habits_router.delete("/delete")
+@habits_router.delete("/delete/{habit_id}")
 async def delete_habit(habit_id: int, db: Session = Depends(get_db)):
+
+    # print("habit", habit_id)
+
+
     habit = db.query(HabitModel).filter(HabitModel.id == habit_id).first()
+
+    # print("habit", habit, habit_id)
+    
     if not habit:
         return {"error": "Habit not found"}
     
