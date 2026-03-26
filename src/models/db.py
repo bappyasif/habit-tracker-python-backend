@@ -26,15 +26,16 @@ class HabitMeasurement(Base):
 
     habit = relationship('Habit', back_populates='measurement')
 
-# class HabitSuccess(Base):
-#     __tablename__ = 'habit_success'
+class HabitSuccess(Base):
+    __tablename__ = 'habit_success'
 
-#     id = Column(Integer, primary_key=True)
-#     habit_id = Column(Integer, ForeignKey('habit.id'))
-#     success_definition = Column(String)
-#     # add any other fields you need for the HabitSuccess
+    id = Column(Integer, primary_key=True)
+    habit_id = Column(Integer, ForeignKey('habit.id'))
+    # keep a single column named `success_definition` that stores a JSON string
+    # (client-facing shape: {"enabled": bool, "percentage": int})
+    success_definition = Column(String)
 
-#     habit = relationship('Habit', back_populates='success_definition')
+    habit = relationship('Habit', back_populates='success_definition')
 
 class HabitFrequency(PyEnum):
     DAILY = 'daily'
@@ -54,11 +55,22 @@ class Habit(Base):
     duration = Column(Integer)
     steps = relationship('HabitStep', back_populates='habit')
     measurement = relationship('HabitMeasurement', back_populates='habit')
-    # don't expose a `success_definition` relationship on Habit for now
-    # success_definition = relationship('HabitSuccess', back_populates='habit')
+    # relationship to a single success definition object
+    success_definition = relationship(
+        'HabitSuccess', back_populates='habit', uselist=False, cascade='all, delete-orphan'
+    )
     # frequency = Column(Enum('daily', 'weekly', 'monthly', 'yearly'), nullable=False)
     # frequency = Column(Enum(HabitFrequency), nullable=False)
     frequency = Column(SQLEnum(HabitFrequency), nullable=False)
+    # i want this table to have relationshiop with HabitTimelineDbModel so that i dont have keep track of habit_it from there
+    # timeline = relationship('WeekTrackingDbModel', back_populates='habit_timeline')
+
+    # relationship back to HabitTimelineDbModel so that i can access the weeks associated with a habit through the timeline
+    timeline = relationship('HabitTimelineDbModel', back_populates='habit', uselist=False, cascade="all, delete-orphan")
+
+    # daily tracking
+    daily_tracking = relationship('DailyTrackingOfHabit', back_populates='habit', uselist=False, cascade="all, delete-orphan")
+
 
 # class WeekTracking(BaseModel):
 #     weekStart: datetime
@@ -94,11 +106,17 @@ class HabitTimelineDbModel(Base):
     __tablename__ = 'habit_timeline'
 
     id = Column(Integer, primary_key=True)
-    habit_id = Column(Integer, unique=True, nullable=False)
+    # habit_id = Column(Integer, unique=True, nullable=False)
+    habit_id = Column(Integer, ForeignKey('habit.id'), unique=True, nullable=False)
     # define a relationship between HabitTimeline and WeekTrackingDbModel
     # this relationship allows us to access the weeks associated with a habit timeline
     # and also allows us to access the habit associated with a week tracking entry
-    weeks = relationship('WeekTrackingDbModel', back_populates='habit_timeline')
+    weeks = relationship('WeekTrackingDbModel', back_populates='habit_timeline', cascade="all, delete-orphan")
+
+    # define a relationship between Habit and HabitTimeline
+    # this relationship allows us to access the habit timeline associated with a habit
+    # and also allows us to access the habit associated with a habit timeline entry
+    habit = relationship('Habit', back_populates='timeline')
 
     # No, I don't need to add anything to Habit to make this newly created relationship work. The relationship between HabitTimelineDbModel and Habit is already defined through the habit_id foreign key in HabitTimelineDbModel. This allows us to access the habit associated with a habit timeline entry through the habit_id foreign key.
     
@@ -114,4 +132,15 @@ class HabitTimelineDbModel(Base):
     # # and also allows us to access the habit associated with a habit timeline entry
     # habit = relationship('Habit', back_populates='weeks')
 
+class DailyTrackingOfHabit(Base):
+    __tablename__ = 'daily_tracking_of_habit'
 
+    id = Column(Integer, primary_key=True)
+    habit_id = Column(Integer, ForeignKey('habit.id'))
+    steps_completed = Column(Integer, default=0)
+    steps_total = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    notes = Column(String, default=None)
+
+    habit = relationship('Habit', back_populates='daily_tracking')

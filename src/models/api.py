@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Literal
+from typing import Literal, Optional, List
 from datetime import datetime
 
 
@@ -13,9 +13,10 @@ class HabitStep(BaseModel):
     time: str
     completed: bool
 
-# class HabitSuccess(BaseModel):
-#     enabled: bool
-#     percentage: float
+class HabitSuccess(BaseModel):
+    enabled: bool = False
+    percentage: int = 0
+
 
 class Habit(BaseModel):
     id: int
@@ -24,9 +25,9 @@ class Habit(BaseModel):
     # created_at: str
     # updated_at: str
     duration: int
-    steps: list[HabitStep]
-    measurement: HabitMeasurement
-    # success_definition: HabitSuccess
+    steps: List[HabitStep] = []
+    measurement: Optional[HabitMeasurement] = None
+    success_definition: HabitSuccess = HabitSuccess(enabled=False, percentage=0)
     frequency: Literal["daily", "weekly", "monthly", "yearly"]
 
 # {
