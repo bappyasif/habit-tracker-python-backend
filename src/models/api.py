@@ -56,6 +56,13 @@ class HabitTimelineTrackingResponse(BaseModel):
     habitId: int
     weeks: list[WeekTracking]
 
+class DailyHabitTrackingRequest(BaseModel):
+    habitId: int
+    dateStamp: datetime
+    totalSteps: int
+    # percentile: float
+    completedSteps: list[HabitStep]
+    
 
 class Week(BaseModel):
     weekStart: datetime

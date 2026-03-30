@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.crud.genai.routes import genai_router
 from src.crud.habits.routes import habits_router
 from src.crud.habits.weekly_timeline.routes import weekly_timeline_router
+from src.crud.habits.daily_tracking.routes import daily_tracking_router
 
 
 server = FastAPI(
@@ -35,6 +36,8 @@ server.include_router(genai_router, prefix="/api/v1")
 server.include_router(habits_router, prefix="/api/v1")
 
 server.include_router(weekly_timeline_router, prefix="/api/v1")
+
+server.include_router(daily_tracking_router, prefix="/api/v1")
 
 # Health Check
 @server.get("/")
