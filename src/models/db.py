@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Enum as SQLEnum, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Enum as SQLEnum, DateTime, Date, UniqueConstraint
 from datetime import datetime
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
@@ -11,8 +11,11 @@ class HabitStep(Base):
 
     id = Column(Integer, primary_key=True)
     habit_id = Column(Integer, ForeignKey('habit.id'))
-    step = Column(String)
+    title = Column(String)
     # add any other fields you need for the HabitStep
+    time = Column(DateTime, default=datetime.utcnow)
+    completed = Column(Boolean, default=False)
+    note = Column(String, default=None)
 
     habit = relationship('Habit', back_populates='steps')
 
@@ -53,6 +56,9 @@ class Habit(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     duration = Column(Integer)
+    total_completed = Column(Integer, default=0)
+    current_streak = Column(Integer, default=0)
+    
     steps = relationship('HabitStep', back_populates='habit')
     measurement = relationship('HabitMeasurement', back_populates='habit')
     # relationship to a single success definition object
@@ -66,10 +72,11 @@ class Habit(Base):
     # timeline = relationship('WeekTrackingDbModel', back_populates='habit_timeline')
 
     # relationship back to HabitTimelineDbModel so that i can access the weeks associated with a habit through the timeline
-    timeline = relationship('HabitTimelineDbModel', back_populates='habit', uselist=False, cascade="all, delete-orphan")
+    # timeline = relationship('HabitTimelineDbModel', back_populates='habit', uselist=False, cascade="all, delete-orphan")
+    timeline = relationship('HabitWeeklyTimelineDbModel', back_populates='habit', uselist=False, cascade="all, delete-orphan")
 
-    # daily tracking
-    daily_tracking = relationship('DailyTrackingOfHabit', back_populates='habit', uselist=False, cascade="all, delete-orphan")
+    # daily tracking - keep as a collection (one entry per date for a habit)
+    daily_tracking = relationship('DailyTrackingOfHabit', back_populates='habit', cascade="all, delete-orphan")
 
 
 # class WeekTracking(BaseModel):
@@ -87,11 +94,11 @@ class WeekTrackingDbModel(Base):
     total_completed = Column(Integer)
     total_steps = Column(Integer)
     percentile = Column(Integer)
-    # relatationship with HabitTimelinedbModel
-    habit_timeline_id = Column(Integer, ForeignKey('habit_timeline.id'))
+    # relationship with HabitWeeklyTimelineDbModel
+    habit_timeline_id = Column(Integer, ForeignKey('habit_timeline_by_weeks.id'))
 
-    # relationship back to HabitTimelineDbModel
-    habit_timeline = relationship('HabitTimelineDbModel', back_populates='weeks')
+    # relationship back to HabitWeeklyTimelineDbModel
+    habit_timeline = relationship('HabitWeeklyTimelineDbModel', back_populates='weeks')
 
     # I don't need to relate WeekTrackingDbModel with Habit because I've already related HabitTimelineDbModel with Habit and HabitTimelineDbModel with WeekTrackingDbModel. This means that I can already access the habit associated with a week tracking entry through the habit timeline.   
 
@@ -102,8 +109,9 @@ class WeekTrackingDbModel(Base):
 # class HabitTimeline(BaseModel):
 #     habitId: int
 #     weeks: list[WeekTracking]
-class HabitTimelineDbModel(Base):
-    __tablename__ = 'habit_timeline'
+class HabitWeeklyTimelineDbModel(Base):
+    # __tablename__ = 'habit_timeline'
+    __tablename__ = 'habit_timeline_by_weeks'
 
     id = Column(Integer, primary_key=True)
     # habit_id = Column(Integer, unique=True, nullable=False)
@@ -132,15 +140,56 @@ class HabitTimelineDbModel(Base):
     # # and also allows us to access the habit associated with a habit timeline entry
     # habit = relationship('Habit', back_populates='weeks')
 
+# class DailyTrackingStep(Base):
+#     __tablename__ = 'daily_tracking_step'
+
+#     id = Column(Integer, primary_key=True)
+#     daily_tracking_id = Column(Integer, ForeignKey('daily_tracking_of_habit.id'))
+
+
 class DailyTrackingOfHabit(Base):
     __tablename__ = 'daily_tracking_of_habit'
-
     id = Column(Integer, primary_key=True)
-    habit_id = Column(Integer, ForeignKey('habit.id'))
+
+    # link to habit (required)
+    habit_id = Column(Integer, ForeignKey('habit.id'), nullable=False, index=True)
+
+    # the calendar date this tracking row represents
+    date_stamp = Column(Date, nullable=False)
+
+    # relationship to per-day step completion rows
+    steps = relationship('DailyTrackingStep', back_populates='daily_tracking', cascade='all, delete-orphan')
+
+    # summary counters (denormalized for quick reads)
     steps_completed = Column(Integer, default=0)
     steps_total = Column(Integer, default=0)
+
+    # audit timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # free-form notes for the day
     notes = Column(String, default=None)
 
+    __table_args__ = (UniqueConstraint('habit_id', 'date_stamp', name='uq_habit_date'),)
+
     habit = relationship('Habit', back_populates='daily_tracking')
+
+
+class DailyTrackingStep(Base):
+    __tablename__ = 'daily_tracking_step'
+    __table_args__ = (UniqueConstraint('daily_tracking_id', 'habit_step_id', name='uq_dailystep_per_day'),)
+
+    id = Column(Integer, primary_key=True)
+    daily_tracking_id = Column(Integer, ForeignKey('daily_tracking_of_habit.id'), nullable=False, index=True)
+    habit_step_id = Column(Integer, ForeignKey('habit_step.id'), nullable=True, index=True)
+
+    # whether this step was completed on that date
+    completed = Column(Boolean, default=False)
+    completed_at = Column(DateTime, nullable=True)
+
+    # optional note specific to this completion
+    note = Column(String, nullable=True)
+
+    daily_tracking = relationship('DailyTrackingOfHabit', back_populates='steps')
+    habit_step = relationship('HabitStep')

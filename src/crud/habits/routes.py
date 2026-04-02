@@ -10,7 +10,7 @@ from src.models.db import (
     HabitFrequency,
 )
 import json
-# from datetime import datetime
+from datetime import datetime
 
 habits_router = APIRouter(prefix="/habits", tags=["habits"])
 
@@ -31,7 +31,16 @@ async def get_all_habits(db: Session = Depends(get_db)):
             "description": habit.description,
             "duration": habit.duration,
             "frequency": habit.frequency.value,
-            "steps": [json.loads(step.step) for step in habit.steps],
+            "steps": [
+                {
+                    "id": step.id,
+                    "title": step.title,
+                    "time": step.time.isoformat() if getattr(step, "time", None) else None,
+                    "completed": step.completed,
+                    "note": step.note,
+                }
+                for step in habit.steps
+            ],
             "measurement": json.loads(habit.measurement[0].measurement) if habit.measurement else None,
             "successDefinition": json.loads(habit.success_definition.success_definition) if habit.success_definition else None,
             "createdAt": habit.created_at.isoformat(),
@@ -47,25 +56,26 @@ async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db)):
     # Convert pydantic model to plain dict
     data = habit.dict()
 
-    # frequency is required by the DB enum column
-    freq_val = data.get("frequency")
-    if not freq_val:
-        raise HTTPException(status_code=400, detail="frequency is required")
+    print(data, "user data chexck for save!!", data.get("steps"), data.get("measurement"))
 
-    try:
-        freq_enum = HabitFrequency(freq_val)
-    except Exception:
-        raise HTTPException(status_code=400, detail=f"invalid frequency: {freq_val}")
+    # return {"message": "Habit creation endpoint hit", "data": data}
 
-    # create ORM Habit with scalar fields only
-    db_habit = HabitModel(
+    habit_data = HabitModel(
         title=data.get("title"),
         description=data.get("description"),
         duration=data.get("duration"),
-        frequency=freq_enum,
+        # frequency=data.get("frequency"),
+        # steps=data.get("steps"),
+        # measurement=data.get("measurement"),
+        # success_definition=data.get("successDefinition"),
     )
 
-    # Attach steps as ORM HabitStep instances (incoming steps are Pydantic models/dicts)
+    # Always convert incoming dict/Pydantic objects into ORM model instances before appending. Use explicit constructors
+
+    # steps/measurement/success_definition are relationship collections or separate tables and must be converted into proper SQLAlchemy ORM instances (with the correct constructor keyword names) before assigning or appending.
+
+    # normalize steps -> create ORM HabitStep instances
+    normalized_steps = []
     for s in (data.get("steps") or []):
         if hasattr(s, "dict"):
             s_dict = s.dict()
@@ -77,97 +87,193 @@ async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db)):
             except Exception:
                 s_dict = {"value": str(s)}
 
-        db_step = HabitStepModel(step=json.dumps(s_dict))
-        db_habit.steps.append(db_step)
+        # parse optional ISO time string into datetime
+        time_val = s_dict.get("time")
+        if isinstance(time_val, str):
+            try:
+                time_val = datetime.fromisoformat(time_val)
+            except Exception:
+                time_val = None
 
-    # Attach measurement (if provided) as ORM HabitMeasurement instance
-    measurement = data.get("measurement")
-    if measurement:
-        if hasattr(measurement, "dict"):
-            m_dict = measurement.dict()
-        elif isinstance(measurement, dict):
-            m_dict = measurement
+        normalized_steps.append(
+            HabitStepModel(
+                title=s_dict.get("title"),
+                time=time_val,
+                completed=bool(s_dict.get("completed", False)),
+                note=s_dict.get("note"),
+            )
+        )
+    habit_data.steps = normalized_steps  # replace the collection with ORM instances
+
+    # normalize measurement (single-entry collection in your design)
+    m = data.get("measurement")
+    if m is not None:
+        if hasattr(m, "dict"):
+            m_dict = m.dict()
+        elif isinstance(m, dict):
+            m_dict = m
         else:
             try:
-                m_dict = dict(measurement)
+                m_dict = dict(m)
             except Exception:
-                m_dict = {"value": str(measurement)}
+                m_dict = {"value": str(m)}
+        habit_data.measurement = [HabitMeasurementModel(measurement=json.dumps(m_dict))]
 
-        db_measure = HabitMeasurementModel(measurement=json.dumps(m_dict))
-        db_habit.measurement.append(db_measure)
-
-    # Attach success_definition (optional) as HabitSuccess (single object)
-    success_def = data.get("success_definition") or data.get("successDefinition")
-    if success_def is not None:
-        if hasattr(success_def, "dict"):
-            sd = success_def.dict()
-        elif isinstance(success_def, dict):
-            sd = success_def
+    # normalize success definition
+    sd = data.get("success_definition") or data.get("successDefinition")
+    if sd is not None:
+        if hasattr(sd, "dict"):
+            sd_dict = sd.dict()
+        elif isinstance(sd, dict):
+            sd_dict = sd
         else:
             try:
-                sd = dict(success_def)
+                sd_dict = dict(sd)
             except Exception:
-                sd = {"enabled": False, "percentage": 0}
+                sd_dict = {"enabled": False, "percentage": 0}
+        sd_clean = {"enabled": bool(sd_dict.get("enabled", False)),
+                    "percentage": int(sd_dict.get("percentage") or 0)}
+        habit_data.success_definition = HabitSuccessModel(success_definition=json.dumps(sd_clean))
 
-        # ensure basic types
-        sd_clean = {
-            "enabled": bool(sd.get("enabled", False)),
-            "percentage": int(sd.get("percentage", 0)) if sd.get("percentage") is not None else 0,
-        }
+    # need to map frequency string to enum before saving, freq_val is a simple scalar (string) so we can map it directly to an Enum and assign it to the Habit instanc
+    freq_val = data.get("frequency")
+    if freq_val is not None:
+        try:
+            freq_enum = HabitFrequency(freq_val)
+            habit_data.frequency = freq_enum
+        except Exception:
+            freq_enum = None
+    
 
-        db_success = HabitSuccessModel(success_definition=json.dumps(sd_clean))
-        # assign single related object
-        db_habit.success_definition = db_success
-
-    # (old single-string success_definition handling removed)
-
-    # persist the habit and its related child rows
-    db.add(db_habit)
+    db.add(habit_data)
     db.commit()
-    db.refresh(db_habit)
+    db.refresh(habit_data)
 
-    # Build a JSON-serializable representation instead of returning raw ORM objects
-    resp = {
-        "id": db_habit.id,
-        "title": db_habit.title,
-        "description": db_habit.description,
-        "duration": db_habit.duration,
-        "frequency": db_habit.frequency.value if getattr(db_habit, "frequency", None) is not None else None,
-        "steps": [],
-        "measurement": None,
-        "successDefinition": None,
-        "createdAt": db_habit.created_at.isoformat() if getattr(db_habit, "created_at", None) else None,
-        "updatedAt": db_habit.updated_at.isoformat() if getattr(db_habit, "updated_at", None) else None,
-    }
+    return {"message": "Habit created successfully", "habit": habit_data}
 
-    # debug: success_definition is handled as a single related object (enabled/percentage)
 
-    for s in db_habit.steps or []:
-        try:
-            resp["steps"].append(json.loads(s.step))
-        except Exception:
-            # fallback: append raw string if JSON parsing fails
-            resp["steps"].append(s.step)
 
-    if db_habit.measurement:
-        try:
-            # assume a single measurement entry if present
-            resp["measurement"] = json.loads(db_habit.measurement[0].measurement)
-        except Exception:
-            resp["measurement"] = db_habit.measurement[0].measurement
+    # # frequency is required by the DB enum column
+    # freq_val = data.get("frequency")
+    # if not freq_val:
+    #     raise HTTPException(status_code=400, detail="frequency is required")
 
-    # include success_definition in response (stored as JSON string)
-    sd_obj = getattr(db_habit, "success_definition", None)
-    if sd_obj and getattr(sd_obj, "success_definition", None):
-        try:
-            resp["successDefinition"] = json.loads(sd_obj.success_definition)
-        except Exception:
-            # fallback: return raw string
-            resp["successDefinition"] = sd_obj.success_definition
-    else:
-        resp["successDefinition"] = {"enabled": False, "percentage": 0}
+    # try:
+    #     freq_enum = HabitFrequency(freq_val)
+    # except Exception:
+    #     raise HTTPException(status_code=400, detail=f"invalid frequency: {freq_val}")
 
-    return {"message": "Habit created successfully", "habit": resp}
+    # # create ORM Habit with scalar fields only
+    # db_habit = HabitModel(
+    #     title=data.get("title"),
+    #     description=data.get("description"),
+    #     duration=data.get("duration"),
+    #     frequency=freq_enum,
+    # )
+
+    # # Attach steps as ORM HabitStep instances (incoming steps are Pydantic models/dicts)
+    # for s in (data.get("steps") or []):
+    #     if hasattr(s, "dict"):
+    #         s_dict = s.dict()
+    #     elif isinstance(s, dict):
+    #         s_dict = s
+    #     else:
+    #         try:
+    #             s_dict = dict(s)
+    #         except Exception:
+    #             s_dict = {"value": str(s)}
+
+    #     db_step = HabitStepModel(step=json.dumps(s_dict))
+    #     db_habit.steps.append(db_step)
+
+    # # Attach measurement (if provided) as ORM HabitMeasurement instance
+    # measurement = data.get("measurement")
+    # if measurement:
+    #     if hasattr(measurement, "dict"):
+    #         m_dict = measurement.dict()
+    #     elif isinstance(measurement, dict):
+    #         m_dict = measurement
+    #     else:
+    #         try:
+    #             m_dict = dict(measurement)
+    #         except Exception:
+    #             m_dict = {"value": str(measurement)}
+
+    #     db_measure = HabitMeasurementModel(measurement=json.dumps(m_dict))
+    #     db_habit.measurement.append(db_measure)
+
+    # # Attach success_definition (optional) as HabitSuccess (single object)
+    # success_def = data.get("success_definition") or data.get("successDefinition")
+    # if success_def is not None:
+    #     if hasattr(success_def, "dict"):
+    #         sd = success_def.dict()
+    #     elif isinstance(success_def, dict):
+    #         sd = success_def
+    #     else:
+    #         try:
+    #             sd = dict(success_def)
+    #         except Exception:
+    #             sd = {"enabled": False, "percentage": 0}
+
+    #     # ensure basic types
+    #     sd_clean = {
+    #         "enabled": bool(sd.get("enabled", False)),
+    #         "percentage": int(sd.get("percentage", 0)) if sd.get("percentage") is not None else 0,
+    #     }
+
+    #     db_success = HabitSuccessModel(success_definition=json.dumps(sd_clean))
+    #     # assign single related object
+    #     db_habit.success_definition = db_success
+
+    # # (old single-string success_definition handling removed)
+
+    # # persist the habit and its related child rows
+    # db.add(db_habit)
+    # db.commit()
+    # db.refresh(db_habit)
+
+    # # Build a JSON-serializable representation instead of returning raw ORM objects
+    # resp = {
+    #     "id": db_habit.id,
+    #     "title": db_habit.title,
+    #     "description": db_habit.description,
+    #     "duration": db_habit.duration,
+    #     "frequency": db_habit.frequency.value if getattr(db_habit, "frequency", None) is not None else None,
+    #     "steps": [],
+    #     "measurement": None,
+    #     "successDefinition": None,
+    #     "createdAt": db_habit.created_at.isoformat() if getattr(db_habit, "created_at", None) else None,
+    #     "updatedAt": db_habit.updated_at.isoformat() if getattr(db_habit, "updated_at", None) else None,
+    # }
+
+    # # debug: success_definition is handled as a single related object (enabled/percentage)
+
+    # for s in db_habit.steps or []:
+    #     try:
+    #         resp["steps"].append(json.loads(s.step))
+    #     except Exception:
+    #         # fallback: append raw string if JSON parsing fails
+    #         resp["steps"].append(s.step)
+
+    # if db_habit.measurement:
+    #     try:
+    #         # assume a single measurement entry if present
+    #         resp["measurement"] = json.loads(db_habit.measurement[0].measurement)
+    #     except Exception:
+    #         resp["measurement"] = db_habit.measurement[0].measurement
+
+    # # include success_definition in response (stored as JSON string)
+    # sd_obj = getattr(db_habit, "success_definition", None)
+    # if sd_obj and getattr(sd_obj, "success_definition", None):
+    #     try:
+    #         resp["successDefinition"] = json.loads(sd_obj.success_definition)
+    #     except Exception:
+    #         # fallback: return raw string
+    #         resp["successDefinition"] = sd_obj.success_definition
+    # else:
+    #     resp["successDefinition"] = {"enabled": False, "percentage": 0}
+
+    # return {"message": "Habit created successfully", "habit": resp}
 # async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db)):
 #     # Convert pydantic model to plain dict
 #     data = habit.dict()
@@ -355,7 +461,19 @@ async def update_habit(habit_data: HabitApiSchema, db: Session = Depends(get_db)
                     except Exception:
                         s_dict = {"value": str(s)}
 
-                db_step = HabitStepModel(step=json.dumps(s_dict))
+                time_val = s_dict.get("time")
+                if isinstance(time_val, str):
+                    try:
+                        time_val = datetime.fromisoformat(time_val)
+                    except Exception:
+                        time_val = None
+
+                db_step = HabitStepModel(
+                    title=s_dict.get("title"),
+                    time=time_val,
+                    completed=bool(s_dict.get("completed", False)),
+                    note=s_dict.get("note"),
+                )
                 habit.steps.append(db_step)
 
         elif key == "measurement":

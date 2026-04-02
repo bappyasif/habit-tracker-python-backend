@@ -8,27 +8,33 @@ class HabitMeasurement(BaseModel):
     target: int
 
 class HabitStep(BaseModel):
-    id: str
+    id: Optional[str] = None
     title: str
-    time: str
-    completed: bool
+    # time: Optional[datetime] = None
+    time: Optional[str] = None
+    completed: Optional[bool] = False
+    note: Optional[str] = None
 
 class HabitSuccess(BaseModel):
     enabled: bool = False
-    percentage: int = 0
+    percentage: float = 0.0
 
 
 class Habit(BaseModel):
-    id: int
+    id: Optional[str] = None
     title: str
-    description: str
+    description: Optional[str] = None
     # created_at: str
     # updated_at: str
-    duration: int
+    duration: Optional[int] = None
     steps: List[HabitStep] = []
     measurement: Optional[HabitMeasurement] = None
-    success_definition: HabitSuccess = HabitSuccess(enabled=False, percentage=0)
+    # this needs to be on Habit dbd model not so much so for API schema
+    # successDefinition: HabitSuccess = HabitSuccess(enabled=False, percentage=0)
     frequency: Literal["daily", "weekly", "monthly", "yearly"]
+    # createdAt: Optional[datetime] = None
+    # currentStreak: Optional[int] = 0
+    # totalCompleted: Optional[int] = 0
 
 # {
 #         habitId: number | string,
@@ -59,9 +65,10 @@ class HabitTimelineTrackingResponse(BaseModel):
 class DailyHabitTrackingRequest(BaseModel):
     habitId: int
     dateStamp: datetime
-    totalSteps: int
+    # totalSteps: int
     # percentile: float
-    completedSteps: list[HabitStep]
+    # completedSteps: list[HabitStep]
+    steps: list[HabitStep]
     
 
 class Week(BaseModel):
