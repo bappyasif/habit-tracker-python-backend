@@ -12,6 +12,33 @@ from src.models.db import (
 import json
 from datetime import datetime
 
+
+def _parse_iso_dt(val):
+    if isinstance(val, str):
+        try:
+            return datetime.fromisoformat(val)
+        except Exception:
+            return None
+    return val
+
+
+def _make_habit_step_from_dict(d: dict) -> HabitStepModel:
+    return HabitStepModel(
+        title=d.get("title"),
+        time=_parse_iso_dt(d.get("time")),
+        completed=bool(d.get("completed", False)),
+        note=d.get("note"),
+    )
+
+
+def _make_measurement_from_dict(d: dict) -> HabitMeasurementModel:
+    return HabitMeasurementModel(measurement=json.dumps(d))
+
+
+def _make_success_from_dict(d: dict) -> HabitSuccessModel:
+    sd_clean = {"enabled": bool(d.get("enabled", False)), "percentage": int(d.get("percentage") or 0)}
+    return HabitSuccessModel(success_definition=json.dumps(sd_clean))
+
 habits_router = APIRouter(prefix="/habits", tags=["habits"])
 
 @habits_router.get("/health")
@@ -87,22 +114,8 @@ async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db)):
             except Exception:
                 s_dict = {"value": str(s)}
 
-        # parse optional ISO time string into datetime
-        time_val = s_dict.get("time")
-        if isinstance(time_val, str):
-            try:
-                time_val = datetime.fromisoformat(time_val)
-            except Exception:
-                time_val = None
-
-        normalized_steps.append(
-            HabitStepModel(
-                title=s_dict.get("title"),
-                time=time_val,
-                completed=bool(s_dict.get("completed", False)),
-                note=s_dict.get("note"),
-            )
-        )
+        # create ORM instance for step using helper
+        normalized_steps.append(_make_habit_step_from_dict(s_dict))
     habit_data.steps = normalized_steps  # replace the collection with ORM instances
 
     # normalize measurement (single-entry collection in your design)
@@ -117,7 +130,7 @@ async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db)):
                 m_dict = dict(m)
             except Exception:
                 m_dict = {"value": str(m)}
-        habit_data.measurement = [HabitMeasurementModel(measurement=json.dumps(m_dict))]
+        habit_data.measurement = [_make_measurement_from_dict(m_dict)]
 
     # normalize success definition
     sd = data.get("success_definition") or data.get("successDefinition")
@@ -131,9 +144,7 @@ async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db)):
                 sd_dict = dict(sd)
             except Exception:
                 sd_dict = {"enabled": False, "percentage": 0}
-        sd_clean = {"enabled": bool(sd_dict.get("enabled", False)),
-                    "percentage": int(sd_dict.get("percentage") or 0)}
-        habit_data.success_definition = HabitSuccessModel(success_definition=json.dumps(sd_clean))
+        habit_data.success_definition = _make_success_from_dict(sd_dict)
 
     # need to map frequency string to enum before saving, freq_val is a simple scalar (string) so we can map it directly to an Enum and assign it to the Habit instanc
     freq_val = data.get("frequency")
@@ -461,19 +472,8 @@ async def update_habit(habit_data: HabitApiSchema, db: Session = Depends(get_db)
                     except Exception:
                         s_dict = {"value": str(s)}
 
-                time_val = s_dict.get("time")
-                if isinstance(time_val, str):
-                    try:
-                        time_val = datetime.fromisoformat(time_val)
-                    except Exception:
-                        time_val = None
-
-                db_step = HabitStepModel(
-                    title=s_dict.get("title"),
-                    time=time_val,
-                    completed=bool(s_dict.get("completed", False)),
-                    note=s_dict.get("note"),
-                )
+                # create ORM instance for step using helper
+                db_step = _make_habit_step_from_dict(s_dict)
                 habit.steps.append(db_step)
 
         elif key == "measurement":
@@ -495,7 +495,7 @@ async def update_habit(habit_data: HabitApiSchema, db: Session = Depends(get_db)
                     except Exception:
                         m_dict = {"value": str(m)}
 
-                db_measure = HabitMeasurementModel(measurement=json.dumps(m_dict))
+                db_measure = _make_measurement_from_dict(m_dict)
                 habit.measurement.append(db_measure)
 
         elif key in {"success_definition", "successDefinition"}:
@@ -526,11 +526,10 @@ async def update_habit(habit_data: HabitApiSchema, db: Session = Depends(get_db)
                         "enabled": bool(sd.get("enabled", False)),
                         "percentage": int(sd.get("percentage", 0)) if sd.get("percentage") is not None else 0,
                     }
-
                     if habit.success_definition:
                         habit.success_definition.success_definition = json.dumps(sd_clean)
                     else:
-                        habit.success_definition = HabitSuccessModel(success_definition=json.dumps(sd_clean))
+                        habit.success_definition = _make_success_from_dict(sd_clean)
 
         else:
             # fallback: try to set attribute if model has it
