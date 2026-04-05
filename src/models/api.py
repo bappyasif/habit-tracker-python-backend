@@ -7,6 +7,7 @@ class HabitMeasurement(BaseModel):
     metric: str
     target: int
 
+
 class HabitStep(BaseModel):
     id: Optional[str] = None
     title: str
@@ -14,6 +15,7 @@ class HabitStep(BaseModel):
     time: Optional[str] = None
     completed: Optional[bool] = False
     note: Optional[str] = None
+
 
 class HabitSuccess(BaseModel):
     enabled: bool = False
@@ -36,6 +38,18 @@ class Habit(BaseModel):
     # currentStreak: Optional[int] = 0
     # totalCompleted: Optional[int] = 0
 
+
+# Habit update schema for partial updates
+class HabitUpdate(BaseModel):
+    id: int
+    title: Optional[str] = None
+    description: Optional[str] = None
+    duration: Optional[int] = None
+    steps: Optional[List[HabitStep]] = None
+    measurement: Optional[HabitMeasurement] = None
+    frequency: Optional[Literal["daily", "weekly", "monthly", "yearly"]] = None
+
+
 # {
 #         habitId: number | string,
 #         weeks: {
@@ -47,6 +61,7 @@ class Habit(BaseModel):
 #         }[]
 #     }
 
+
 class WeekTracking(BaseModel):
     weekStart: datetime
     weekEnd: datetime
@@ -54,13 +69,16 @@ class WeekTracking(BaseModel):
     totalSteps: int
     percentile: float
 
+
 class HabitTimelineTrackingRequest(BaseModel):
     habitId: int
     week: WeekTracking
 
+
 class HabitTimelineTrackingResponse(BaseModel):
     habitId: int
     weeks: list[WeekTracking]
+
 
 class DailyHabitTrackingRequest(BaseModel):
     habitId: int
@@ -69,7 +87,7 @@ class DailyHabitTrackingRequest(BaseModel):
     # percentile: float
     # completedSteps: list[HabitStep]
     steps: list[HabitStep]
-    
+
 
 class Week(BaseModel):
     weekStart: datetime
@@ -78,17 +96,21 @@ class Week(BaseModel):
     totalSteps: int
     percentile: float
 
+
 class HabitCompletion(BaseModel):
     habit_id: int
     weeks: list[Week]
+
 
 class WeeklySummaryRequest(BaseModel):
     hobbyName: str
     hobbyDescription: str
     hobbyFeedback: str
 
+
 class SummaryResponse(BaseModel):
     summary: str
+
 
 class WeeklySummaryResponse(BaseModel):
     response: SummaryResponse
@@ -97,10 +119,12 @@ class WeeklySummaryResponse(BaseModel):
 # class WeeklySummaryResponse(BaseModel):
 #     response: dict[str, str] = {"summary": ""}
 
+
 class DailyHabitAiInferenceRequest(BaseModel):
     hobby: str
     description: str
     feedback: str
+
 
 class InferenceResponseData(BaseModel):
     strengths: list[str]
@@ -110,8 +134,10 @@ class InferenceResponseData(BaseModel):
     examples: list[str]
     actions: list[HabitStep]
 
+
 class DailyHabitAiInferenceResponse(BaseModel):
     response: InferenceResponseData
+
 
 # class DailyHabitAiInferenceResponse(BaseModel):
 #     response: dict

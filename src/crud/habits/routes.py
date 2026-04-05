@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from src.util.db import get_db
-from src.models.api import Habit as HabitApiSchema
+from src.models.api import Habit as HabitApiSchema, HabitUpdate as HabitUpdateSchema
 from src.models.db import (
     Habit as HabitModel,
     HabitStep as HabitStepModel,
@@ -77,6 +77,23 @@ async def get_all_habits(db: Session = Depends(get_db)):
         
     return {"habits": modified_habits}
     # return {"habits": habits, "modified_habits": modified_habits}
+
+@habits_router.delete("/delete/{habit_id}")
+async def delete_habit(habit_id: int, db: Session = Depends(get_db)):
+
+    # print("habit", habit_id)
+
+
+    habit = db.query(HabitModel).filter(HabitModel.id == habit_id).first()
+
+    print("habit", habit, habit_id)
+    
+    if not habit:
+        return {"error": "Habit not found"}
+    
+    db.delete(habit)
+    db.commit()
+    return {"message": "Habit deleted successfully"}
 
 @habits_router.post("/create")
 async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db)):
@@ -163,8 +180,132 @@ async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db)):
     return {"message": "Habit created successfully", "habit": habit_data}
 
 
+@habits_router.put("/update")
+async def update_habit(habit_data: HabitUpdateSchema, db: Session = Depends(get_db)):
+    habit = db.query(HabitModel).filter(HabitModel.id == habit_data.id).first()
+    
+    if not habit:
+        return {"error": "Habit not found"}
+    # Update scalar fields only; nested relationships require separate handling
+    # use Pydantic v2's model_dump to get only set fields for partial update
+    update_data = habit_data.model_dump(exclude_unset=True)
 
-    # # frequency is required by the DB enum column
+    for key, value in update_data.items():
+        # never overwrite the id
+        if key == "id":
+            continue
+
+        # direct scalar fields
+        if key in {"title", "description", "created_at", "updated_at", "duration"}:
+            setattr(habit, key, value)
+
+        elif key == "frequency":
+            # convert to enum safely
+            try:
+                setattr(habit, "frequency", HabitFrequency(value))
+            except Exception:
+                # ignore invalid enum values here; validation can handle it upstream
+                pass
+
+        elif key == "steps":
+            # Expect a list of step objects/dicts; replace existing collection
+            # Clear existing steps and append new ORM HabitStepModel instances
+            try:
+                habit.steps.clear()
+            except Exception:
+                # fallback - assign new list if clear not supported
+                habit.steps = []
+
+            for s in (value or []):
+                if hasattr(s, "dict"):
+                    s_dict = s.dict()
+                elif isinstance(s, dict):
+                    s_dict = s
+                else:
+                    try:
+                        s_dict = dict(s)
+                    except Exception:
+                        s_dict = {"value": str(s)}
+
+                # create ORM instance for step using helper
+                db_step = _make_habit_step_from_dict(s_dict)
+                habit.steps.append(db_step)
+
+        elif key == "measurement":
+            # measurement is represented as a (single) related object in the DB
+            try:
+                habit.measurement.clear()
+            except Exception:
+                habit.measurement = []
+
+            m = value
+            if m is not None:
+                if hasattr(m, "dict"):
+                    m_dict = m.dict()
+                elif isinstance(m, dict):
+                    m_dict = m
+                else:
+                    try:
+                        m_dict = dict(m)
+                    except Exception:
+                        m_dict = {"value": str(m)}
+
+                db_measure = _make_measurement_from_dict(m_dict)
+                habit.measurement.append(db_measure)
+
+        elif key in {"success_definition", "successDefinition"}:
+            sd_val = value
+            if sd_val is None:
+                # clear the relation
+                try:
+                    habit.success_definition = None
+                except Exception:
+                    pass
+            else:
+                if hasattr(sd_val, "dict"):
+                    sd = sd_val.dict()
+                elif isinstance(sd_val, dict):
+                    sd = sd_val
+                else:
+                    try:
+                        sd = dict(sd_val)
+                    except Exception:
+                        sd = None
+
+                if sd is None:
+                    # reset to defaults
+                    if habit.success_definition:
+                        habit.success_definition.success_definition = json.dumps({"enabled": False, "percentage": 0})
+                else:
+                    sd_clean = {
+                        "enabled": bool(sd.get("enabled", False)),
+                        "percentage": int(sd.get("percentage", 0)) if sd.get("percentage") is not None else 0,
+                    }
+                    if habit.success_definition:
+                        habit.success_definition.success_definition = json.dumps(sd_clean)
+                    else:
+                        habit.success_definition = _make_success_from_dict(sd_clean)
+
+        else:
+            # fallback: try to set attribute if model has it
+            if hasattr(habit, key):
+                try:
+                    setattr(habit, key, value)
+                except Exception:
+                    # ignore anything we can't set directly
+                    pass
+
+    db.commit()
+    # refresh to bring ORM relationships up-to-date if caller needs them
+    try:
+        db.refresh(habit)
+    except Exception:
+        pass
+
+    return {"message": "Habit updated successfully"}
+
+
+# # frequency is required by the DB enum column
     # freq_val = data.get("frequency")
     # if not freq_val:
     #     raise HTTPException(status_code=400, detail="frequency is required")
@@ -424,145 +565,3 @@ async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db)):
 
 #     db.commit()
 #     return {"message": "Habit updated successfully"}
-
-@habits_router.put("/update")
-async def update_habit(habit_data: HabitApiSchema, db: Session = Depends(get_db)):
-    habit = db.query(HabitModel).filter(HabitModel.id == habit_data.id).first()
-    
-    if not habit:
-        return {"error": "Habit not found"}
-    # Update scalar fields only; nested relationships require separate handling
-    # use Pydantic's dict to get only set fields
-    update_data = habit_data.dict(exclude_unset=True)
-
-    for key, value in update_data.items():
-        # never overwrite the id
-        if key == "id":
-            continue
-
-        # direct scalar fields
-        if key in {"title", "description", "created_at", "updated_at", "duration"}:
-            setattr(habit, key, value)
-
-        elif key == "frequency":
-            # convert to enum safely
-            try:
-                setattr(habit, "frequency", HabitFrequency(value))
-            except Exception:
-                # ignore invalid enum values here; validation can handle it upstream
-                pass
-
-        elif key == "steps":
-            # Expect a list of step objects/dicts; replace existing collection
-            # Clear existing steps and append new ORM HabitStepModel instances
-            try:
-                habit.steps.clear()
-            except Exception:
-                # fallback - assign new list if clear not supported
-                habit.steps = []
-
-            for s in (value or []):
-                if hasattr(s, "dict"):
-                    s_dict = s.dict()
-                elif isinstance(s, dict):
-                    s_dict = s
-                else:
-                    try:
-                        s_dict = dict(s)
-                    except Exception:
-                        s_dict = {"value": str(s)}
-
-                # create ORM instance for step using helper
-                db_step = _make_habit_step_from_dict(s_dict)
-                habit.steps.append(db_step)
-
-        elif key == "measurement":
-            # measurement is represented as a (single) related object in the DB
-            try:
-                habit.measurement.clear()
-            except Exception:
-                habit.measurement = []
-
-            m = value
-            if m is not None:
-                if hasattr(m, "dict"):
-                    m_dict = m.dict()
-                elif isinstance(m, dict):
-                    m_dict = m
-                else:
-                    try:
-                        m_dict = dict(m)
-                    except Exception:
-                        m_dict = {"value": str(m)}
-
-                db_measure = _make_measurement_from_dict(m_dict)
-                habit.measurement.append(db_measure)
-
-        elif key in {"success_definition", "successDefinition"}:
-            sd_val = value
-            if sd_val is None:
-                # clear the relation
-                try:
-                    habit.success_definition = None
-                except Exception:
-                    pass
-            else:
-                if hasattr(sd_val, "dict"):
-                    sd = sd_val.dict()
-                elif isinstance(sd_val, dict):
-                    sd = sd_val
-                else:
-                    try:
-                        sd = dict(sd_val)
-                    except Exception:
-                        sd = None
-
-                if sd is None:
-                    # reset to defaults
-                    if habit.success_definition:
-                        habit.success_definition.success_definition = json.dumps({"enabled": False, "percentage": 0})
-                else:
-                    sd_clean = {
-                        "enabled": bool(sd.get("enabled", False)),
-                        "percentage": int(sd.get("percentage", 0)) if sd.get("percentage") is not None else 0,
-                    }
-                    if habit.success_definition:
-                        habit.success_definition.success_definition = json.dumps(sd_clean)
-                    else:
-                        habit.success_definition = _make_success_from_dict(sd_clean)
-
-        else:
-            # fallback: try to set attribute if model has it
-            if hasattr(habit, key):
-                try:
-                    setattr(habit, key, value)
-                except Exception:
-                    # ignore anything we can't set directly
-                    pass
-
-    db.commit()
-    # refresh to bring ORM relationships up-to-date if caller needs them
-    try:
-        db.refresh(habit)
-    except Exception:
-        pass
-
-    return {"message": "Habit updated successfully"}
-
-
-@habits_router.delete("/delete/{habit_id}")
-async def delete_habit(habit_id: int, db: Session = Depends(get_db)):
-
-    # print("habit", habit_id)
-
-
-    habit = db.query(HabitModel).filter(HabitModel.id == habit_id).first()
-
-    # print("habit", habit, habit_id)
-    
-    if not habit:
-        return {"error": "Habit not found"}
-    
-    db.delete(habit)
-    db.commit()
-    return {"message": "Habit deleted successfully"}
