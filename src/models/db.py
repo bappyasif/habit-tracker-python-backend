@@ -59,8 +59,12 @@ class Habit(Base):
     total_completed = Column(Integer, default=0)
     current_streak = Column(Integer, default=0)
     
-    steps = relationship('HabitStep', back_populates='habit')
-    measurement = relationship('HabitMeasurement', back_populates='habit')
+    # cascade so that deleting a Habit will also remove related child rows
+    # at the ORM level (and avoids FK constraint errors). For DB-level
+    # cascade also consider adding `ondelete='CASCADE'` to the ForeignKey
+    # definitions and running a migration.
+    steps = relationship('HabitStep', back_populates='habit', cascade='all, delete-orphan')
+    measurement = relationship('HabitMeasurement', back_populates='habit', cascade='all, delete-orphan')
     # relationship to a single success definition object
     success_definition = relationship(
         'HabitSuccess', back_populates='habit', uselist=False, cascade='all, delete-orphan'

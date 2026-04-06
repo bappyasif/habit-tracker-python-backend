@@ -10,7 +10,7 @@ from src.models.db import (
     HabitFrequency,
 )
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def _parse_iso_dt(val):
@@ -294,6 +294,9 @@ async def update_habit(habit_data: HabitUpdateSchema, db: Session = Depends(get_
                 except Exception:
                     # ignore anything we can't set directly
                     pass
+
+    # lets update updated_at timestamp on update
+    # habit.updated_at = datetime.now(timezone.utc)  # update timestamp is already defined in DB model with onupdate, so it should auto-update on commit, but we can set it explicitly here if needed
 
     db.commit()
     # refresh to bring ORM relationships up-to-date if caller needs them

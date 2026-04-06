@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from src.models.db import HabitTimelineDbModel, WeekTrackingDbModel
+from src.models.db import HabitWeeklyTimelineDbModel, WeekTrackingDbModel
 from src.models.api import HabitTimelineTrackingRequest as HabitTimelineApiSchema, HabitTimelineTrackingResponse as HabitTimelineResponseSchema
 from src.util.db import get_db
 
@@ -17,7 +17,7 @@ async def weekly_timeline_health_check():
 
 @weekly_timeline_router.get("/habit-timeline/{id}")
 async def get_habit_by_id(id: int, db: Session = Depends(get_db)):
-    habit_timeline = db.query(HabitTimelineDbModel).filter(HabitTimelineDbModel.id == id).first()
+    habit_timeline = db.query(HabitWeeklyTimelineDbModel).filter(HabitWeeklyTimelineDbModel.id == id).first()
     
     if not habit_timeline:
         return {"error": "Habit not found"}
@@ -34,7 +34,7 @@ async def create_habit_weekly_timeline(habit_timeline: HabitTimelineApiSchema, d
     # return { "message": "Habit timeline health test"}
 
     #  check if habit weekly timeline exists
-    habit_timeline_exists = db.query(HabitTimelineDbModel).filter(HabitTimelineDbModel.habit_id == habit_timeline.habitId).first()
+    habit_timeline_exists = db.query(HabitWeeklyTimelineDbModel).filter(HabitWeeklyTimelineDbModel.habit_id == habit_timeline.habitId).first()
     
     if not habit_timeline_exists:
         # build a WeekTrackingDbModel from the incoming Pydantic WeekTracking
@@ -46,7 +46,7 @@ async def create_habit_weekly_timeline(habit_timeline: HabitTimelineApiSchema, d
             percentile=int(habit_timeline.week.percentile),
         )
 
-        new_habit_timeline = HabitTimelineDbModel(habit_id=habit_timeline.habitId, weeks=[week_db])
+        new_habit_timeline = HabitWeeklyTimelineDbModel(habit_id=habit_timeline.habitId, weeks=[week_db])
         db.add(new_habit_timeline)
         db.commit()
         db.refresh(new_habit_timeline)
