@@ -9,10 +9,10 @@ class HabitMeasurement(BaseModel):
 
 
 class HabitStep(BaseModel):
-    id: Optional[str] = None
+    id: Optional[str]
     title: str
     # time: Optional[datetime] = None
-    time: Optional[str] = None
+    time: Optional[str]
     completed: Optional[bool] = False
     note: Optional[str] = None
 
@@ -81,11 +81,12 @@ class HabitTimelineTrackingResponse(BaseModel):
 
 
 class DailyHabitTrackingRequest(BaseModel):
-    habitId: int
+    habitId: str
     dateStamp: datetime
-    # totalSteps: int
+    # dateStamp: str
+    totalSteps: int
     # percentile: float
-    # completedSteps: list[HabitStep]
+    completedSteps: list[HabitStep]
     steps: list[HabitStep]
 
 
