@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Enum as SQLEnum, DateTime, Date, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Enum as SQLEnum, DateTime, Date, UniqueConstraint, JSON
 from datetime import datetime
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
@@ -167,6 +167,11 @@ class DailyTrackingOfHabit(Base):
     # summary counters (denormalized for quick reads)
     steps_completed = Column(Integer, default=0)
     steps_total = Column(Integer, default=0)
+
+    # store completed step IDs as a JSON array (list[int])
+    # Use a callable default (list) to avoid a shared mutable default across instances.
+    # If you prefer DB-specific arrays (Postgres), consider using sqlalchemy.dialects.postgresql.ARRAY
+    completed_steps_ids = Column(JSON, default=list)
 
     # audit timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
