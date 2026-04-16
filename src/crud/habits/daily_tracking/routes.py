@@ -77,8 +77,6 @@ async def create_daily_tracking(daily_tracking: DailyTrackingApiSchema, db: Sess
 
 @daily_tracking_router.put("/habit-timeline/{tracking_id}")
 async def update_daily_tracking(tracking_id: int, daily_tracking: DailyTrackingApiSchema, db: Session = Depends(get_db)):
-    # tracking_entry = db.query(DailyTrackingOfHabit).filter(DailyTrackingOfHabit.id == tracking_id).first()
-
     print(daily_tracking, "daily_tracking>><<>><<")
 
     tracking_entry = db.query(DailyTrackingOfHabit).filter(DailyTrackingOfHabit.habit_id == daily_tracking.habitId).all()
@@ -96,35 +94,143 @@ async def update_daily_tracking(tracking_id: int, daily_tracking: DailyTrackingA
             filtered_entry = entry
             break
 
+    # lets update filtered entry with recieved data and update completed steps ids based on recieved data
+
+    filtered_entry.steps_completed = len(daily_tracking.completedSteps)
+    filtered_entry.steps_total = daily_tracking.totalSteps
+    filtered_entry.notes = daily_tracking.notes if hasattr(daily_tracking, 'notes') else None
+    filtered_entry.completed_steps_ids = [step.id for step in daily_tracking.completedSteps]
+
+    # i want this tracking entry data to be updated with filtered entry
+    # tracking_entry[tracking_entry.index(filtered_entry.id)] = filtered_entry
+    tracking_entry[tracking_entry.index(filtered_entry) -1] = filtered_entry
+
+
     if not filtered_entry:
         return {"error": "Daily tracking entry not found for the given date"}
     
     print(filtered_entry, "filtered_entry>>><<>><<", filtered_entry.__dict__.items())
 
-    # get daily steps from db
-    daily_steps = db.query(DailyTrackingStep).filter(DailyTrackingStep.daily_tracking_id == filtered_entry.id).all()
-
-    # update daily steps
-    for step in daily_steps:
-        # step.completed_at = step.habit_step_id in daily_tracking.completedStepsIds
-        print(step, "step>>><<>><<", step.__dict__.items())
-        if step.habit_step_id in daily_tracking.completedStepsIds:
-            step.completed = True
-        else:
-            step.completed = False
-    # this updates needs to be refined currently it only retrun filtered item leaving rest asa empty in response
-    # try:
-    #     db.commit()
-    #     db.refresh(filtered_entry)
-    # except Exception as e:
-    #     db.rollback()
-    #     print(e, "error>>><<>><<")
-    #     return {"error": "Failed to update daily tracking entry"}
-
-    # for item in filtered_entry.__dict__.items():
-    #     print(item, "item>>><<>><<")
+    try:
+        db.commit()
+        db.refresh(filtered_entry)
+    except Exception as e:
+        db.rollback()
+        print(e, "error>>><<>><<")
+        return {"error": "Failed to update daily tracking entry"}
     
     return {"message": "Daily tracking entry found", "entry": tracking_entry}
+
+# @daily_tracking_router.put("/habit-timeline/{tracking_id}")
+# async def update_daily_tracking(tracking_id: int, daily_tracking: DailyTrackingApiSchema, db: Session = Depends(get_db)):
+#     print(daily_tracking, "daily_tracking>><<>><<")
+
+#     tracking_entry = db.query(DailyTrackingOfHabit).filter(DailyTrackingOfHabit.habit_id == daily_tracking.habitId).all()
+
+#     print(len(tracking_entry), "tracking_entry>>><<>><<")
+
+#     if not len(tracking_entry):
+#         return {"error": "Daily tracking entry not found"}
+    
+#     # this piece confirms how to retrive only related dataStamped data from list  and later have to decide on which props to update based on the retrieved data
+#     filtered_entry = None
+
+#     for entry in tracking_entry:
+#         if entry.date_stamp == daily_tracking.dateStamp.date():
+#             filtered_entry = entry
+#             break
+
+#     if not filtered_entry:
+#         return {"error": "Daily tracking entry not found for the given date"}
+    
+#     print(filtered_entry, "filtered_entry>>><<>><<", filtered_entry.__dict__.items())
+
+#     # get daily steps from db
+#     daily_steps = db.query(DailyTrackingStep).filter(DailyTrackingStep.daily_tracking_id == filtered_entry.id).all()
+
+#     all_steps = db.query(DailyTrackingStep).all()
+
+#     print(daily_steps, "daily_steps>>><<>><<", len(daily_steps))
+
+#     print(all_steps, "all_steps>>><<>><<", len(all_steps))
+
+#     # update daily steps
+#     for step in daily_steps:
+#         if step.habit_step_id in daily_tracking.completedStepsIds:
+#             step.completed = True
+#         else:
+#             step.completed = False
+    
+#     return {"message": "Daily tracking entry found", "entry": tracking_entry}
+
+# @daily_tracking_router.put("/habit-timeline/{tracking_id}")
+# async def update_daily_tracking(tracking_id: int, daily_tracking: DailyTrackingApiSchema, db: Session = Depends(get_db)):
+#     # tracking_entry = db.query(DailyTrackingOfHabit).filter(DailyTrackingOfHabit.id == tracking_id).first()
+
+#     print(daily_tracking, "daily_tracking>><<>><<")
+
+#     tracking_entry = db.query(DailyTrackingOfHabit).filter(DailyTrackingOfHabit.habit_id == daily_tracking.habitId).all()
+
+#     print(len(tracking_entry), "tracking_entry>>><<>><<")
+
+#     if not len(tracking_entry):
+#         return {"error": "Daily tracking entry not found"}
+    
+#     # this piece confirms how to retrive only related dataStamped data from list  and later have to decide on which props to update based on the retrieved data
+#     filtered_entry = None
+
+#     for entry in tracking_entry:
+#         if entry.date_stamp == daily_tracking.dateStamp.date():
+#             filtered_entry = entry
+#             break
+
+#     if not filtered_entry:
+#         return {"error": "Daily tracking entry not found for the given date"}
+    
+#     print(filtered_entry, "filtered_entry>>><<>><<", filtered_entry.__dict__.items())
+
+#     # get daily steps from db
+#     daily_steps = db.query(DailyTrackingStep).filter(DailyTrackingStep.daily_tracking_id == filtered_entry.id).all()
+
+#     all_steps = db.query(DailyTrackingStep).all()
+
+#     print(daily_steps, "daily_steps>>><<>><<", len(daily_steps))
+
+#     print(all_steps, "all_steps>>><<>><<", len(all_steps))
+
+#     # for item in dir(daily_steps):
+#     #     print(item, "item>>><<>><<")
+
+#     # for item in daily_steps.__dict__.items():
+#     #     print(item, "item>>><<>><<")
+
+#     # update daily tracking entry
+#     # filtered_entry.steps_completed = len(daily_tracking.completedSteps)
+#     # filtered_entry.steps_total = daily_tracking.totalSteps
+#     # filtered_entry.notes = daily_tracking.notes if hasattr(daily_tracking, 'notes') else None
+#     # filtered_entry.completed_steps_ids = [step.id for step in daily_tracking.completedSteps]
+
+#     # update daily steps
+#     for step in daily_steps:
+#         # step.completed_at = step.habit_step_id in daily_tracking.completedStepsIds
+#         # print(step, "step>>><<>><<", step.__dict__.items())
+#         if step.habit_step_id in daily_tracking.completedStepsIds:
+#             step.completed = True
+#         else:
+#             step.completed = False
+#     # this updates needs to be refined currently it only retrun filtered item leaving rest asa empty in response
+#     # try:
+#     #     db.commit()
+#     #     db.refresh(filtered_entry)
+#     # except Exception as e:
+#     #     db.rollback()
+#     #     print(e, "error>>><<>><<")
+#     #     return {"error": "Failed to update daily tracking entry"}
+
+#     # for item in filtered_entry.__dict__.items():
+#     #     print(item, "item>>><<>><<")
+    
+#     return {"message": "Daily tracking entry found", "entry": tracking_entry}
 
 
 # @daily_tracking_router.put("/habit-timeline/{tracking_id}")
