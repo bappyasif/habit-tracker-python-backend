@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+import math
 
 # from src.models.db import DailyTrackingOfHabit
 # from src.models.api import DailyTrackingRequest as DailyTrackingApiSchema, DailyTrackingResponse as DailyTrackingResponseSchema
@@ -27,6 +28,7 @@ async def get_daily_tracking(habit_id: int, db: Session = Depends(get_db)):
             "date_stamp": entry.date_stamp,
             "steps_completed": entry.steps_completed,
             "steps_total": entry.steps_total,
+            "percentile": math.floor((entry.steps_completed/entry.steps_total) * 100),
             # "steps": [step.id for step in entry.steps],  # Assuming you want to return the IDs of the steps
             "completed_steps_ids": entry.completed_steps_ids,
             "notes": entry.notes,
