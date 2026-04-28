@@ -17,6 +17,9 @@ class HabitStep(Base):
     completed = Column(Boolean, default=False)
     note = Column(String, default=None)
 
+    # add datestamp to determine which steps for which date its been tracked for
+    datestamp = Column(Date, default=datetime.utcnow)
+
     habit = relationship('Habit', back_populates='steps')
 
 class HabitMeasurement(Base):

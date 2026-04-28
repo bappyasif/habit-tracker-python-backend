@@ -14,6 +14,18 @@ daily_tracking_router = APIRouter(prefix="/daily-tracking", tags=["daily-trackin
 async def daily_tracking_health_check():
     return {"status": "daily-tracking router is healthy"}
 
+@daily_tracking_router.delete("/habit-timeline/{habit_id}")
+async def delete_daily_tracking(habit_id: int, db: Session = Depends(get_db)):
+    tracking_entries = db.query(DailyTrackingOfHabit).filter(DailyTrackingOfHabit.habit_id == habit_id).all()
+    if not tracking_entries:
+        return {"error": "No daily tracking entries found for the given habit ID"}
+    
+    for entry in tracking_entries:
+        db.delete(entry)
+    
+    db.commit()
+    return {"message": "Daily tracking entries deleted successfully"}
+
 @daily_tracking_router.get("/habit-timeline/{habit_id}")
 async def get_daily_tracking(habit_id: int, db: Session = Depends(get_db)):
     tracking_entries = db.query(DailyTrackingOfHabit).filter(DailyTrackingOfHabit.habit_id == habit_id).all()

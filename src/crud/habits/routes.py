@@ -65,6 +65,7 @@ async def get_all_habits(db: Session = Depends(get_db)):
                     "time": step.time.isoformat() if getattr(step, "time", None) else None,
                     "completed": step.completed,
                     "note": step.note,
+                    "datestamp": step.datestamp.isoformat() if getattr(step, "datestamp", None) else None,
                 }
                 for step in habit.steps
             ],
@@ -77,6 +78,8 @@ async def get_all_habits(db: Session = Depends(get_db)):
         
     return {"habits": modified_habits}
     # return {"habits": habits, "modified_habits": modified_habits}
+
+# lets create a habit tracking updates for a habit that only been done for Tracking Page from frontend, wghere oinly Habit's step, notes, time, title, and datestanmp are updated
 
 @habits_router.delete("/delete/{habit_id}")
 async def delete_habit(habit_id: int, db: Session = Depends(get_db)):
