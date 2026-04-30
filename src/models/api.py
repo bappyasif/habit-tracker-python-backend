@@ -14,7 +14,7 @@ class HabitStep(BaseModel):
     # time: Optional[datetime] = None
     time: Optional[str]
     completed: Optional[bool] = False
-    note: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class HabitSuccess(BaseModel):
@@ -48,6 +48,8 @@ class HabitUpdate(BaseModel):
     steps: Optional[List[HabitStep]] = None
     measurement: Optional[HabitMeasurement] = None
     frequency: Optional[Literal["daily", "weekly", "monthly", "yearly"]] = None
+    notes: Optional[str] = None
+
 
 
 # {

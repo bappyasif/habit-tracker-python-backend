@@ -15,7 +15,7 @@ class HabitStep(Base):
     # add any other fields you need for the HabitStep
     time = Column(DateTime, default=datetime.utcnow)
     completed = Column(Boolean, default=False)
-    note = Column(String, default=None)
+    notes = Column(String, default=None)
 
     # add datestamp to determine which steps for which date its been tracked for
     datestamp = Column(Date, default=datetime.utcnow)
@@ -201,7 +201,7 @@ class DailyTrackingStep(Base):
     completed_at = Column(DateTime, nullable=True)
 
     # optional note specific to this completion
-    note = Column(String, nullable=True)
+    notes = Column(String, nullable=True)
 
     daily_tracking = relationship('DailyTrackingOfHabit', back_populates='steps')
     habit_step = relationship('HabitStep')

@@ -27,7 +27,7 @@ def _make_habit_step_from_dict(d: dict) -> HabitStepModel:
         title=d.get("title"),
         time=_parse_iso_dt(d.get("time")),
         completed=bool(d.get("completed", False)),
-        note=d.get("note"),
+        notes=d.get("notes"),
     )
 
 
@@ -64,7 +64,7 @@ async def get_all_habits(db: Session = Depends(get_db)):
                     "title": step.title,
                     "time": step.time.isoformat() if getattr(step, "time", None) else None,
                     "completed": step.completed,
-                    "note": step.note,
+                    "notes": step.notes,
                     "datestamp": step.datestamp.isoformat() if getattr(step, "datestamp", None) else None,
                 }
                 for step in habit.steps
@@ -180,7 +180,11 @@ async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(habit_data)
 
+    habit_data.notes = habit_data.note
+
     return {"message": "Habit created successfully", "habit": habit_data}
+
+    # return {"message": "Habit created successfully", "habit": habit_data}
 
 
 @habits_router.put("/update")
