@@ -180,7 +180,7 @@ async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(habit_data)
 
-    habit_data.notes = habit_data.note
+    # habit_data.notes = habit_data.note
 
     return {"message": "Habit created successfully", "habit": habit_data}
 

@@ -42,10 +42,12 @@ async def get_daily_tracking(habit_id: int, db: Session = Depends(get_db)):
             "steps_total": entry.steps_total,
             "percentile": math.floor((entry.steps_completed/entry.steps_total) * 100),
             # "steps": [step.id for step in entry.steps],  # Assuming you want to return the IDs of the steps
-            "completed_steps_ids": entry.completed_steps_ids,
-            "notes": entry.notes,
+            # "completed_steps_ids": entry.completed_steps_ids,
+            # "notes": entry.notes,
             "created_at": entry.created_at,
-            "updated_at": entry.updated_at
+            "updated_at": entry.updated_at,
+            # now will be working with step id and notes for each of those steps
+            "steps_completed_with_notes": entry.steps_completed_with_notes
         })
 
     return {"daily_tracking_timeline": response}
@@ -56,19 +58,24 @@ async def create_daily_tracking(daily_tracking: DailyTrackingApiSchema, db: Sess
         return {"error": "Daily tracking data not found"}
     print(daily_tracking, "daily_tracking>><<>><<")
 
-    step_ids = [step.id for step in daily_tracking.completedSteps]
-    print(step_ids, "step_ids>>><<>><<")
+    # step_ids = [step.id for step in daily_tracking.completedSteps]
+    # print(step_ids, "step_ids>>><<>><<")
+
+    step_ids_with_notes = [{"id": step.id, "notes": step.notes} for step in daily_tracking.completedSteps]
     
     new_tracking = DailyTrackingOfHabit(
         habit_id=daily_tracking.habitId,
         # steps_completed=len(daily_tracking.completedSteps),
-        steps_completed=len(step_ids),
+        # steps_completed=len(step_ids),
+        steps_completed=len(step_ids_with_notes),
         steps_total=daily_tracking.totalSteps,
         date_stamp=daily_tracking.dateStamp,
-        notes=daily_tracking.notes if hasattr(daily_tracking, 'notes') else None,
+        # notes=daily_tracking.notes if hasattr(daily_tracking, 'notes') else None,
         # created_at=daily_tracking.dateStamp,
         # updated_at=daily_tracking.dateStamp
-        completed_steps_ids=step_ids
+        # completed_steps_ids=step_ids
+        steps_completed_with_notes=step_ids_with_notes
+        
     )
 
     db.add(new_tracking)
@@ -81,7 +88,7 @@ async def create_daily_tracking(daily_tracking: DailyTrackingApiSchema, db: Sess
         "date_stamp": new_tracking.date_stamp,
         "steps_completed": new_tracking.steps_completed,
         "steps_total": new_tracking.steps_total,
-        "notes": new_tracking.notes,
+        # "notes": new_tracking.notes,
         "created_at": new_tracking.created_at,
         "updated_at": new_tracking.updated_at,
         "steps": daily_tracking.steps

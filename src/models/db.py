@@ -174,14 +174,17 @@ class DailyTrackingOfHabit(Base):
     # store completed step IDs as a JSON array (list[int])
     # Use a callable default (list) to avoid a shared mutable default across instances.
     # If you prefer DB-specific arrays (Postgres), consider using sqlalchemy.dialects.postgresql.ARRAY
-    completed_steps_ids = Column(JSON, default=list)
+    # completed_steps_ids = Column(JSON, default=list)
+
+    # store completed ids and notes specefic to each of those ids
+    steps_completed_with_notes = Column(JSON, default=dict)
 
     # audit timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # free-form notes for the day
-    notes = Column(String, default=None)
+    # notes = Column(String, default=None)
 
     __table_args__ = (UniqueConstraint('habit_id', 'date_stamp', name='uq_habit_date'),)
 
