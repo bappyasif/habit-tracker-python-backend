@@ -119,8 +119,9 @@ async def update_daily_tracking(tracking_id: int, daily_tracking: DailyTrackingA
 
     filtered_entry.steps_completed = len(daily_tracking.completedSteps)
     filtered_entry.steps_total = daily_tracking.totalSteps
-    filtered_entry.notes = daily_tracking.notes if hasattr(daily_tracking, 'notes') else None
-    filtered_entry.completed_steps_ids = [step.id for step in daily_tracking.completedSteps]
+    # filtered_entry.notes = daily_tracking.notes if hasattr(daily_tracking, 'notes') else None
+    # filtered_entry.completed_steps_ids = [step.id for step in daily_tracking.completedSteps]
+    filtered_entry.steps_completed_with_notes = [{"id": step.id, "notes": step.notes} for step in daily_tracking.completedSteps]
 
     # i want this tracking entry data to be updated with filtered entry
     # tracking_entry[tracking_entry.index(filtered_entry.id)] = filtered_entry
