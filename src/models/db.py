@@ -9,7 +9,8 @@ Base = declarative_base()
 class HabitStep(Base):
     __tablename__ = 'habit_step'
 
-    id = Column(Integer, primary_key=True)
+    # id = Column(Integer, primary_key=True)
+    id = Column(String, primary_key=True)
     habit_id = Column(Integer, ForeignKey('habit.id'))
     title = Column(String)
     # add any other fields you need for the HabitStep
@@ -197,7 +198,8 @@ class DailyTrackingStep(Base):
 
     id = Column(Integer, primary_key=True)
     daily_tracking_id = Column(Integer, ForeignKey('daily_tracking_of_habit.id'), nullable=False, index=True)
-    habit_step_id = Column(Integer, ForeignKey('habit_step.id'), nullable=True, index=True)
+    # habit_step_id = Column(Integer, ForeignKey('habit_step.id'), nullable=True, index=True)
+    habit_step_id = Column(String, ForeignKey('habit_step.id'), nullable=True, index=True)
 
     # whether this step was completed on that date
     completed = Column(Boolean, default=False)

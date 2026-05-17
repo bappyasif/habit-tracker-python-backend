@@ -24,6 +24,7 @@ def _parse_iso_dt(val):
 
 def _make_habit_step_from_dict(d: dict) -> HabitStepModel:
     return HabitStepModel(
+        id=d.get("id"),
         title=d.get("title"),
         time=_parse_iso_dt(d.get("time")),
         completed=bool(d.get("completed", False)),
