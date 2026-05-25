@@ -14,6 +14,17 @@ daily_tracking_router = APIRouter(prefix="/daily-tracking", tags=["daily-trackin
 async def daily_tracking_health_check():
     return {"status": "daily-tracking router is healthy"}
 
+@daily_tracking_router.delete("/habit-timeline/{daily_tracking_id}")
+async def delete_daily_tracking(daily_tracking_id: int, db: Session = Depends(get_db)):
+    tracking_entry = db.query(DailyTrackingOfHabit).filter(DailyTrackingOfHabit.id == daily_tracking_id).first()
+    if not tracking_entry:
+        return {"error": "No daily tracking entry found for the given ID"}
+    
+    db.delete(tracking_entry)
+    db.commit()
+    return {"message": "Daily tracking entry deleted successfully"}
+
+
 @daily_tracking_router.delete("/habit-timeline/{habit_id}")
 async def delete_daily_tracking(habit_id: int, db: Session = Depends(get_db)):
     tracking_entries = db.query(DailyTrackingOfHabit).filter(DailyTrackingOfHabit.habit_id == habit_id).all()
@@ -56,7 +67,7 @@ async def get_daily_tracking(habit_id: int, db: Session = Depends(get_db)):
 async def create_daily_tracking(daily_tracking: DailyTrackingApiSchema, db: Session = Depends(get_db)):
     if not daily_tracking:
         return {"error": "Daily tracking data not found"}
-    print(daily_tracking, "daily_tracking>><<>><<")
+    # print(daily_tracking, "daily_tracking>><<>><<")
 
     # step_ids = [step.id for step in daily_tracking.completedSteps]
     # print(step_ids, "step_ids>>><<>><<")
@@ -93,6 +104,8 @@ async def create_daily_tracking(daily_tracking: DailyTrackingApiSchema, db: Sess
         "updated_at": new_tracking.updated_at,
         "steps": daily_tracking.steps
     }
+
+    # print(resp, "resp>>><<FOR CREATE>><<")
 
     return {"message": "Daily tracking entry created", "entry": resp}
 
