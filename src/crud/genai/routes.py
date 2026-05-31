@@ -60,7 +60,10 @@ async def genai_weekly_summary(user_input: WeeklySummaryRequest):
         return {"status": "genai router is unhealthy", "error": str(e)}
 
 
-@genai_router.post("/inference", response_model=DailyHabitAiInferenceResponse)
+@genai_router.post(
+        "/inference", 
+        # response_model=DailyHabitAiInferenceResponse
+    )
 async def genai_inference(
     # user_input: dict[str, str]
     user_input: DailyHabitAiInferenceRequest
@@ -102,6 +105,7 @@ async def genai_inference(
             data = json.loads(json_string)
             print(data["strengths"])
             return {"response": data}
+        
         except json.JSONDecodeError as e:
             print("JSON Error:", e)
 
