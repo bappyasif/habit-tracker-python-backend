@@ -82,6 +82,7 @@ async def genai_inference(
         You are an expert AI assistant that provides actionable feedback to improve hobbies.
         Given the following hobby description, provide specific and actionable feedback to help improve it.
         Return the feedback in JSON format with the following properties:
+        - daily_summary: Provide some actionable feedback in a clear and concise manner of about 10 to 20 words as a string.
         - strengths: List the strengths of the hobby.
         - areas_for_improvement: List specific areas where the hobby can be improved.
         - actionable_steps: Provide clear and actionable steps to enhance the hobby.
@@ -103,7 +104,7 @@ async def genai_inference(
         # Parse it
         try:
             data = json.loads(json_string)
-            print(data["strengths"])
+            # print(data["strengths"])
             return {"response": data}
         
         except json.JSONDecodeError as e:

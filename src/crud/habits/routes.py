@@ -217,27 +217,56 @@ async def update_habit(habit_data: HabitUpdateSchema, db: Session = Depends(get_
 
         elif key == "steps":
             # Expect a list of step objects/dicts; replace existing collection
-            # Clear existing steps and append new ORM HabitStepModel instances
             try:
-                habit.steps.clear()
+                # Clear existing steps and append new ORM HabitStepModel instances
+                # habit.steps.clear()
+
+                # i want to add addintional steps data instead of clearing it first, so we will just append the new steps to the existing collection instead of clearing it first
+                
+                for s in (value or []):
+                    if hasattr(s, "dict"):
+                        s_dict = s.dict()
+                    elif isinstance(s, dict):
+                        s_dict = s
+                    else:
+                        try:
+                            s_dict = dict(s)
+                        except Exception:
+                            s_dict = {"value": str(s)}
+
+                    # i need to filter out any steps that have the same id as the incoming step, so we will just check if the step with the same id already exists in the habit.steps collection and if it does we will update it instead of appending a new one, and if it doesn't exist we will append a new one
+
+                    existing_step = next((step for step in habit.steps if step.id == s_dict.get("id")), None)
+                    if existing_step:
+                        # update existing step
+                        for k, v in s_dict.items():
+                            setattr(existing_step, k, v)
+                    else:
+                        # append new step
+                        db_step = _make_habit_step_from_dict(s_dict)
+                        habit.steps.append(db_step)
+
+                    # create ORM instance for step using helper
+                    # db_step = _make_habit_step_from_dict(s_dict)
+                    # habit.steps.append(db_step)
             except Exception:
                 # fallback - assign new list if clear not supported
                 habit.steps = []
 
-            for s in (value or []):
-                if hasattr(s, "dict"):
-                    s_dict = s.dict()
-                elif isinstance(s, dict):
-                    s_dict = s
-                else:
-                    try:
-                        s_dict = dict(s)
-                    except Exception:
-                        s_dict = {"value": str(s)}
+            # for s in (value or []):
+            #     if hasattr(s, "dict"):
+            #         s_dict = s.dict()
+            #     elif isinstance(s, dict):
+            #         s_dict = s
+            #     else:
+            #         try:
+            #             s_dict = dict(s)
+            #         except Exception:
+            #             s_dict = {"value": str(s)}
 
-                # create ORM instance for step using helper
-                db_step = _make_habit_step_from_dict(s_dict)
-                habit.steps.append(db_step)
+            #     # create ORM instance for step using helper
+            #     db_step = _make_habit_step_from_dict(s_dict)
+            #     habit.steps.append(db_step)
 
         elif key == "measurement":
             # measurement is represented as a (single) related object in the DB
