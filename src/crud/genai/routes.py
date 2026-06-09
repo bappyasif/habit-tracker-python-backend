@@ -16,11 +16,14 @@ async def genai_health_check():
         return {"status": "genai router is unhealthy", "error": str(e)}
     # return {"status": "genai router is healthy"}
 
+@genai_router.post("/mothly-trend")
+async def genai_monthly_trend(user_input):
+    return {"status": "genai router is healthy"}
+
 @genai_router.post(
         "/weekly-summary", 
-        response_model=WeeklySummaryResponse
+        # response_model=WeeklySummaryResponse
 )
-
 async def genai_weekly_summary(user_input: WeeklySummaryRequest): 
     # hobby = user_input.get("hobbyName")
     # description = user_input.get("hobbyDescription")
@@ -50,7 +53,7 @@ async def genai_weekly_summary(user_input: WeeklySummaryRequest):
         # Parse it
         try:
             data = json.loads(json_string)
-            print(data, data["summary"])
+            print(data, data["summary"], "whats happening!!")
             return {"response": data}
             # return {"summary": data["summary"]}
         except json.JSONDecodeError as e:
