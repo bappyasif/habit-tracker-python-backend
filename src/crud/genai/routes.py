@@ -16,9 +16,42 @@ async def genai_health_check():
         return {"status": "genai router is unhealthy", "error": str(e)}
     # return {"status": "genai router is healthy"}
 
-@genai_router.post("/mothly-trend")
-async def genai_monthly_trend(user_input):
-    return {"status": "genai router is healthy"}
+@genai_router.post("/monthly-trends")
+async def genai_monthly_trend(user_input: WeeklySummaryRequest):
+    # print(user_input, "!!monthy trends!!")
+    hobby = user_input.hobbyName
+    description = user_input.hobbyDescription
+    feedback = user_input.hobbyFeedback
+    try:
+        # lets write a weekly summarizing prompt that will return a json response back to user after gemini inference
+        prompt = f"""
+        You are an expert AI assistant that provides weekly summaries of hobbies.
+        Given the following hobby description for almost a month, provide a monthly trends summary of the hobby.
+        Return the trends summary in JSON format with the following properties:
+        - trends: Provide a monthly trends summary of the hobby. use a short and concise manner
+        Hobby Description: {description}WeeklySummaryRequest
+        Hobby Name: {hobby}
+        Feedback: {feedback}
+        """
+
+        raw_text = try_gemini_inference(prompt)
+
+        # Remove the code block markers
+        start = raw_text.find('{')
+        end = raw_text.rfind('}')
+        if start != -1 and end != -1:
+            raw_text = raw_text[start:end+1]
+
+        # Parse the JSON response
+        response = json.loads(raw_text)
+
+        print(response, "!!monthly trends!!")
+
+        return response
+
+    except Exception as e:
+        return {"status": "genai router is unhealthy", "error": str(e)}
+    # return {"status": "genai router is healthy"}
 
 @genai_router.post(
         "/weekly-summary", 
