@@ -10,11 +10,6 @@ weekly_timeline_router = APIRouter(prefix="/weekly-timeline", tags=["weekly-time
 async def weekly_timeline_health_check():
     return {"status": "weekly-timeline router is healthy"}
 
-# @weekly_timeline_router.get("/habits")
-# async def get_all_habits(db: Session = Depends(get_db)):
-#     habits = db.query(HabitTimelineDbModel).all()
-#     return { "habits": habits }
-
 @weekly_timeline_router.get("/habit-timeline/{id}")
 async def get_habit_by_id(id: int, db: Session = Depends(get_db)):
     habit_timeline = db.query(HabitWeeklyTimelineDbModel).filter(HabitWeeklyTimelineDbModel.id == id).first()
@@ -28,10 +23,6 @@ async def get_habit_by_id(id: int, db: Session = Depends(get_db)):
 async def create_habit_weekly_timeline(habit_timeline: HabitTimelineApiSchema, db: Session = Depends(get_db)):
     if not habit_timeline:
         return {"error": "Habit timeline not found"}
-        
-    print(habit_timeline, "habit_timeline>><<>><<")
-
-    # return { "message": "Habit timeline health test"}
 
     #  check if habit weekly timeline exists
     habit_timeline_exists = db.query(HabitWeeklyTimelineDbModel).filter(HabitWeeklyTimelineDbModel.habit_id == habit_timeline.habitId).first()
@@ -79,6 +70,3 @@ async def create_habit_weekly_timeline(habit_timeline: HabitTimelineApiSchema, d
             })
 
         return {"weeks": response_weeks, "habitId": habit_timeline_exists.habit_id}
-
-    
-    return {"error": "Habit timeline already exists"}

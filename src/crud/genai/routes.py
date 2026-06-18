@@ -14,11 +14,9 @@ async def genai_health_check():
         return {"status": "genai router is healthy", "sample_response": gem_inf}
     except Exception as e:
         return {"status": "genai router is unhealthy", "error": str(e)}
-    # return {"status": "genai router is healthy"}
 
 @genai_router.post("/monthly-trends")
 async def genai_monthly_trend(user_input: WeeklySummaryRequest):
-    # print(user_input, "!!monthy trends!!")
     hobby = user_input.hobbyName
     description = user_input.hobbyDescription
     feedback = user_input.hobbyFeedback
@@ -45,22 +43,16 @@ async def genai_monthly_trend(user_input: WeeklySummaryRequest):
         # Parse the JSON response
         response = json.loads(raw_text)
 
-        print(response, "!!monthly trends!!")
-
         return response
 
     except Exception as e:
         return {"status": "genai router is unhealthy", "error": str(e)}
-    # return {"status": "genai router is healthy"}
 
 @genai_router.post(
         "/weekly-summary", 
         # response_model=WeeklySummaryResponse
 )
 async def genai_weekly_summary(user_input: WeeklySummaryRequest): 
-    # hobby = user_input.get("hobbyName")
-    # description = user_input.get("hobbyDescription")
-    # feedback = user_input.get("hobbyFeedback")
     hobby =  user_input.hobbyName
     description = user_input.hobbyDescription
     feedback = user_input.hobbyFeedback
@@ -88,7 +80,6 @@ async def genai_weekly_summary(user_input: WeeklySummaryRequest):
             data = json.loads(json_string)
             print(data, data["summary"], "whats happening!!")
             return {"response": data}
-            # return {"summary": data["summary"]}
         except json.JSONDecodeError as e:
             print("JSON Error:", e)
 
@@ -101,12 +92,8 @@ async def genai_weekly_summary(user_input: WeeklySummaryRequest):
         # response_model=DailyHabitAiInferenceResponse
     )
 async def genai_inference(
-    # user_input: dict[str, str]
     user_input: DailyHabitAiInferenceRequest
 ):
-    # hobby = user_input.get("hobby")
-    # description = user_input.get("description")
-    # feedback = user_input.get("feedback")
     hobby = user_input.hobby
     description = user_input.description
     feedback = user_input.feedback
@@ -140,7 +127,6 @@ async def genai_inference(
         # Parse it
         try:
             data = json.loads(json_string)
-            # print(data["strengths"])
             return {"response": data}
         
         except json.JSONDecodeError as e:

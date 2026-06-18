@@ -9,7 +9,6 @@ Base = declarative_base()
 class HabitStep(Base):
     __tablename__ = 'habit_step'
 
-    # id = Column(Integer, primary_key=True)
     id = Column(String, primary_key=True)
     habit_id = Column(Integer, ForeignKey('habit.id'))
     title = Column(String)
@@ -73,26 +72,15 @@ class Habit(Base):
     success_definition = relationship(
         'HabitSuccess', back_populates='habit', uselist=False, cascade='all, delete-orphan'
     )
-    # frequency = Column(Enum('daily', 'weekly', 'monthly', 'yearly'), nullable=False)
-    # frequency = Column(Enum(HabitFrequency), nullable=False)
     frequency = Column(SQLEnum(HabitFrequency), nullable=False)
     # i want this table to have relationshiop with HabitTimelineDbModel so that i dont have keep track of habit_it from there
-    # timeline = relationship('WeekTrackingDbModel', back_populates='habit_timeline')
 
     # relationship back to HabitTimelineDbModel so that i can access the weeks associated with a habit through the timeline
-    # timeline = relationship('HabitTimelineDbModel', back_populates='habit', uselist=False, cascade="all, delete-orphan")
     timeline = relationship('HabitWeeklyTimelineDbModel', back_populates='habit', uselist=False, cascade="all, delete-orphan")
 
     # daily tracking - keep as a collection (one entry per date for a habit)
     daily_tracking = relationship('DailyTrackingOfHabit', back_populates='habit', cascade="all, delete-orphan")
 
-
-# class WeekTracking(BaseModel):
-#     weekStart: datetime
-#     weekEnd: datetime
-#     totalCompleted: float
-#     totalSteps: int
-#     percentile: float
 class WeekTrackingDbModel(Base):
     __tablename__ = 'week_tracking'
 
@@ -108,21 +96,10 @@ class WeekTrackingDbModel(Base):
     # relationship back to HabitWeeklyTimelineDbModel
     habit_timeline = relationship('HabitWeeklyTimelineDbModel', back_populates='weeks')
 
-    # I don't need to relate WeekTrackingDbModel with Habit because I've already related HabitTimelineDbModel with Habit and HabitTimelineDbModel with WeekTrackingDbModel. This means that I can already access the habit associated with a week tracking entry through the habit timeline.   
-
-    # habit_id = Column(Integer, ForeignKey('habit.id'))
-
-    # habit = relationship('Habit', back_populates='weeks')
-
-# class HabitTimeline(BaseModel):
-#     habitId: int
-#     weeks: list[WeekTracking]
 class HabitWeeklyTimelineDbModel(Base):
-    # __tablename__ = 'habit_timeline'
     __tablename__ = 'habit_timeline_by_weeks'
 
     id = Column(Integer, primary_key=True)
-    # habit_id = Column(Integer, unique=True, nullable=False)
     habit_id = Column(Integer, ForeignKey('habit.id'), unique=True, nullable=False)
     # define a relationship between HabitTimeline and WeekTrackingDbModel
     # this relationship allows us to access the weeks associated with a habit timeline
@@ -133,27 +110,6 @@ class HabitWeeklyTimelineDbModel(Base):
     # this relationship allows us to access the habit timeline associated with a habit
     # and also allows us to access the habit associated with a habit timeline entry
     habit = relationship('Habit', back_populates='timeline')
-
-    # No, I don't need to add anything to Habit to make this newly created relationship work. The relationship between HabitTimelineDbModel and Habit is already defined through the habit_id foreign key in HabitTimelineDbModel. This allows us to access the habit associated with a habit timeline entry through the habit_id foreign key.
-    
-    # The habit_id column in HabitTimelineDbModel is a foreign key that references the id column in Habit.
-    # This means that for any given HabitTimelineDbModel entry, we can access the Habit entry associated with it through the habit_id foreign key.
-    # For example, if we have a HabitTimelineDbModel entry with habit_id = 1, we can access the Habit entry with id = 1 through the habit_id foreign key.
-
-
-    # this relationship is not necessary as we can already access the habit associated with a habit timeline entry through the habit_id foreign key
-
-    # # define a relationship between Habit and HabitTimeline
-    # # this relationship allows us to access the habit timeline associated with a habit
-    # # and also allows us to access the habit associated with a habit timeline entry
-    # habit = relationship('Habit', back_populates='weeks')
-
-# class DailyTrackingStep(Base):
-#     __tablename__ = 'daily_tracking_step'
-
-#     id = Column(Integer, primary_key=True)
-#     daily_tracking_id = Column(Integer, ForeignKey('daily_tracking_of_habit.id'))
-
 
 class DailyTrackingOfHabit(Base):
     __tablename__ = 'daily_tracking_of_habit'
@@ -172,20 +128,12 @@ class DailyTrackingOfHabit(Base):
     steps_completed = Column(Integer, default=0)
     steps_total = Column(Integer, default=0)
 
-    # store completed step IDs as a JSON array (list[int])
-    # Use a callable default (list) to avoid a shared mutable default across instances.
-    # If you prefer DB-specific arrays (Postgres), consider using sqlalchemy.dialects.postgresql.ARRAY
-    # completed_steps_ids = Column(JSON, default=list)
-
     # store completed ids and notes specefic to each of those ids
     steps_completed_with_notes = Column(JSON, default=dict)
 
     # audit timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # free-form notes for the day
-    # notes = Column(String, default=None)
 
     __table_args__ = (UniqueConstraint('habit_id', 'date_stamp', name='uq_habit_date'),)
 
@@ -198,7 +146,6 @@ class DailyTrackingStep(Base):
 
     id = Column(Integer, primary_key=True)
     daily_tracking_id = Column(Integer, ForeignKey('daily_tracking_of_habit.id'), nullable=False, index=True)
-    # habit_step_id = Column(Integer, ForeignKey('habit_step.id'), nullable=True, index=True)
     habit_step_id = Column(String, ForeignKey('habit_step.id'), nullable=True, index=True)
 
     # whether this step was completed on that date
