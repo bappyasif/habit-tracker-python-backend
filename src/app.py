@@ -4,6 +4,8 @@ from src.crud.genai.routes import genai_router
 from src.crud.habits.routes import habits_router
 from src.crud.habits.weekly_timeline.routes import weekly_timeline_router
 from src.crud.habits.daily_tracking.routes import daily_tracking_router
+from src.crud.user.routes import users_router
+from src.crud.user.authorize.routes import authorize_user_router
 
 
 server = FastAPI(
@@ -38,6 +40,9 @@ server.include_router(habits_router, prefix="/api/v1")
 server.include_router(weekly_timeline_router, prefix="/api/v1")
 
 server.include_router(daily_tracking_router, prefix="/api/v1")
+
+server.include_router(users_router, prefix="/api/v1")
+server.include_router(authorize_user_router, prefix="/api/v1")
 
 # Health Check
 @server.get("/")
