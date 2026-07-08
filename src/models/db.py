@@ -81,6 +81,10 @@ class Habit(Base):
     # daily tracking - keep as a collection (one entry per date for a habit)
     daily_tracking = relationship('DailyTrackingOfHabit', back_populates='habit', cascade="all, delete-orphan")
 
+    # relationship to User
+    user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
+    # user_id = Column(Integer, ForeignKey('authorized_user.id'), nullable=False)
+
 class WeekTrackingDbModel(Base):
     __tablename__ = 'week_tracking'
 
@@ -157,3 +161,16 @@ class DailyTrackingStep(Base):
 
     daily_tracking = relationship('DailyTrackingOfHabit', back_populates='steps')
     habit_step = relationship('HabitStep')
+
+# i want to keep track of authenticated users and their habits, so i will create a new table for that
+class User(Base):
+    __tablename__ = 'user'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)
+    email = Column(String, unique=True, nullable=False)
+    image = Column(String, nullable=False)
+    # password_hash = Column(String, nullable=False)
+
+    # relationship to habits
+    habits = relationship('Habit', backref='user', cascade='all, delete-orphan')
