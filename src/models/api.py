@@ -23,6 +23,7 @@ class HabitSuccess(BaseModel):
 
 
 class Habit(BaseModel):
+    userId: int = 1
     id: Optional[str] = None
     title: str
     description: Optional[str] = None

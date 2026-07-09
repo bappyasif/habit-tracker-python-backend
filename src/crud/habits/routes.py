@@ -103,7 +103,8 @@ async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db)):
     habit_data = HabitModel(
         title=data.get("title"),
         description=data.get("description"),
-        duration=data.get("duration")
+        duration=data.get("duration"),
+        user_id=data.get("userId"),
     )
 
     # Always convert incoming dict/Pydantic objects into ORM model instances before appending. Use explicit constructors
