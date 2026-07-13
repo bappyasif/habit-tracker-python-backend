@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from src.util.db import get_db
 from src.models.db import User
+from src.models.api import UserAuthorizeRequest
 
 authorize_user_router = APIRouter(prefix="/user-authorize", tags=["authorize"])
 
@@ -32,40 +33,59 @@ async def get_authorized_user_by_email(email: str, db: Session = Depends(get_db)
     # }
     # return {"user": mock_user}
 
-# authorize a user with email, image, name in request object
+
 @authorize_user_router.post("/")
-async def authorize_user(user: dict, db: Session = Depends(get_db)):
-    print(f"Authorizing user: {user}")
-
-    # Here you would typically save the user to your database and perform any necessary authorization logic.
-    # For demonstration purposes, we'll return a mock response.
-    # mock_response = {
-    #     "message": "User authorized successfully",
-    #     "user": user
-    # }
-
-    # return mock_response
+async def authorize_user(payload: dict, db: Session = Depends(get_db)):
+    print(f"Authorizing user: {payload}")
 
     # Check if the user already exists in the database
-    existing_user = db.query(User).filter_by(email=user["email"]).first()
+    existing_user = db.query(User).filter_by(email=payload["email"]).first()
     print(f"Existing user: {existing_user}", existing_user.id)
-    # Replace your existing_user line with this:
-    # existing_user = db.query(User.id).filter(User.email == user["email"]).first()
+
     if existing_user:
         return {"msg": "User already exists", "user": existing_user}
 
     # Create a new user in the database
-    new_user = User(email=user["email"], name=user["name"], image=user["image"])
+    new_user = User(email=payload["email"], name=payload["name"], image=payload["image"])
     db.add(new_user)
     db.commit()
 
     return {"message": "User authorized successfully", "user": new_user}
-    
-    # Here you would typically save the user to your database and perform any necessary authorization logic.
-    # For demonstration purposes, we'll return a mock response.
-    # mock_response = {
-    #     "message": "User authorized successfully",
-    #     "user": user
-    # }
 
-    # return mock_response
+
+# @authorize_user_router.post("/")
+# async def authorize_user(user: dict, db: Session = Depends(get_db)):
+#     print(f"Authorizing user: {user}")
+
+#     # Here you would typically save the user to your database and perform any necessary authorization logic.
+#     # For demonstration purposes, we'll return a mock response.
+#     # mock_response = {
+#     #     "message": "User authorized successfully",
+#     #     "user": user
+#     # }
+
+#     # return mock_response
+
+#     # Check if the user already exists in the database
+#     existing_user = db.query(User).filter_by(email=user["email"]).first()
+#     print(f"Existing user: {existing_user}", existing_user.id)
+#     # Replace your existing_user line with this:
+#     # existing_user = db.query(User.id).filter(User.email == user["email"]).first()
+#     if existing_user:
+#         return {"msg": "User already exists", "user": existing_user}
+
+#     # Create a new user in the database
+#     new_user = User(email=user["email"], name=user["name"], image=user["image"])
+#     db.add(new_user)
+#     db.commit()
+
+#     return {"message": "User authorized successfully", "user": new_user}
+    
+#     # Here you would typically save the user to your database and perform any necessary authorization logic.
+#     # For demonstration purposes, we'll return a mock response.
+#     # mock_response = {
+#     #     "message": "User authorized successfully",
+#     #     "user": user
+#     # }
+
+#     # return mock_response

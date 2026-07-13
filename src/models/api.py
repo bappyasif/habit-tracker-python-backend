@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Literal, Optional, List
 from datetime import datetime
 
@@ -145,3 +145,9 @@ class DailyHabitAiInferenceResponse(BaseModel):
 
 # class DailyHabitAiInferenceResponse(BaseModel):
 #     response: dict
+
+class UserAuthorizeRequest(BaseModel):
+    # email: EmailStr
+    email: str = Field(..., example="user@example.com")
+    name: str
+    image: Optional[str] = None
