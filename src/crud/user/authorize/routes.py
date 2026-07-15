@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi.security import OAuth2PasswordBearer
 from jwcrypto import jwt, jwk
 import base64
+from src.util.oauth2 import create_access_token
 
 authorize_user_router = APIRouter(prefix="/user-authorize", tags=["authorize"])
 
@@ -39,6 +40,31 @@ async def get_authorized_user_by_email(email: str, db: Session = Depends(get_db)
     # return {"user": mock_user}
 
 @authorize_user_router.post("/with-jwt")
+async def authorize_user(payload: UserAuthorizeRequest, db: Session = Depends(get_db)):
+    print(f"Authorizing user: {payload}")
+
+    # Check if the user already exists in the database
+    # existing_user = db.query(User).filter_by(email=payload["email"]).first()
+    existing_user = db.query(User).filter_by(email=payload.email).first()
+
+    print(f"Existing user: {existing_user}", existing_user.id)
+
+    if not existing_user:
+        new_user = User(email=payload["email"], name=payload["name"], image=payload["image"])
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+    
+    access_token = create_access_token(existing_user.id)
+
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer", 
+        "user": existing_user
+        }
+
+
+@authorize_user_router.post("/with-jwt-legacy")
 async def authorize_user(payload: UserAuthorizeRequest, db: Session = Depends(get_db)):
     print(f"Authorizing user: {payload}")
 
