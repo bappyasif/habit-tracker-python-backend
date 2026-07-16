@@ -9,14 +9,127 @@ from src.models.db import Habit as HabitModel
 # from src.models.db import User
 import json
 # import base64
+from datetime import datetime
 from src.util.oauth2 import get_current_user
+from src.models.api import Habit as HabitApiSchema
+from src.models.db import Habit as HabitModel, HabitStep as HabitStepModel, HabitMeasurement as HabitMeasurementModel, HabitSuccess as HabitSuccessModel, HabitFrequency
 
 user_habits_router = APIRouter(prefix="/user-habits", tags=["user-habits"])
-
 
 @user_habits_router.get("/")
 async def get_user_habits():
     return {"message": "Get user habits"}
+
+def _parse_iso_dt(val):
+    if isinstance(val, str):
+        try:
+            return datetime.fromisoformat(val)
+        except Exception:
+            return None
+    return val
+
+
+def _make_habit_step_from_dict(d: dict) -> HabitStepModel:
+    return HabitStepModel(
+        id=d.get("id"),
+        title=d.get("title"),
+        time=_parse_iso_dt(d.get("time")),
+        completed=bool(d.get("completed", False)),
+        notes=d.get("notes"),
+    )
+
+
+def _make_measurement_from_dict(d: dict) -> HabitMeasurementModel:
+    return HabitMeasurementModel(measurement=json.dumps(d))
+
+
+def _make_success_from_dict(d: dict) -> HabitSuccessModel:
+    sd_clean = {"enabled": bool(d.get("enabled", False)), "percentage": int(d.get("percentage") or 0)}
+    return HabitSuccessModel(success_definition=json.dumps(sd_clean))
+
+@user_habits_router.post("/create-securely")
+async def create_habit(habit: HabitApiSchema, db: Session = Depends(get_db), user_id: int = Depends(get_current_user)):
+    # Check if user is authenticated
+    if user_id is None:
+        return {"error": "User not authenticated"}
+    
+    # Convert pydantic model to plain dict
+    data = habit.dict()
+
+    print(data, "user data chexck for save!!", data.get("steps"), data.get("measurement"))
+
+    habit_data = HabitModel(
+        title=data.get("title"),
+        description=data.get("description"),
+        duration=data.get("duration"),
+        user_id=data.get("userId"),
+    )
+
+    # Always convert incoming dict/Pydantic objects into ORM model instances before appending. Use explicit constructors
+
+    # steps/measurement/success_definition are relationship collections or separate tables and must be converted into proper SQLAlchemy ORM instances (with the correct constructor keyword names) before assigning or appending.
+
+    # normalize steps -> create ORM HabitStep instances
+    normalized_steps = []
+    for s in (data.get("steps") or []):
+        if hasattr(s, "dict"):
+            s_dict = s.dict()
+        elif isinstance(s, dict):
+            s_dict = s
+        else:
+            try:
+                s_dict = dict(s)
+            except Exception:
+                s_dict = {"value": str(s)}
+
+        # create ORM instance for step using helper
+        normalized_steps.append(_make_habit_step_from_dict(s_dict))
+    habit_data.steps = normalized_steps  # replace the collection with ORM instances
+
+    # normalize measurement (single-entry collection in your design)
+    m = data.get("measurement")
+    if m is not None:
+        if hasattr(m, "dict"):
+            m_dict = m.dict()
+        elif isinstance(m, dict):
+            m_dict = m
+        else:
+            try:
+                m_dict = dict(m)
+            except Exception:
+                m_dict = {"value": str(m)}
+        habit_data.measurement = [_make_measurement_from_dict(m_dict)]
+
+    # normalize success definition
+    sd = data.get("success_definition") or data.get("successDefinition")
+    if sd is not None:
+        if hasattr(sd, "dict"):
+            sd_dict = sd.dict()
+        elif isinstance(sd, dict):
+            sd_dict = sd
+        else:
+            try:
+                sd_dict = dict(sd)
+            except Exception:
+                sd_dict = {"enabled": False, "percentage": 0}
+        habit_data.success_definition = _make_success_from_dict(sd_dict)
+
+    # need to map frequency string to enum before saving, freq_val is a simple scalar (string) so we can map it directly to an Enum and assign it to the Habit instanc
+    freq_val = data.get("frequency")
+    if freq_val is not None:
+        try:
+            freq_enum = HabitFrequency(freq_val)
+            habit_data.frequency = freq_enum
+        except Exception:
+            freq_enum = None
+    
+
+    db.add(habit_data)
+    db.commit()
+    db.refresh(habit_data)
+
+    return {"message": "Habit created successfully", "habit": habit_data}
+
 
 @user_habits_router.get("/secured")
 async def get_current_user_habits(user_id: int = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -90,8 +203,6 @@ async def get_user_habits(user_id: int, db: Session = Depends(get_db)):
         modified_habits.append(modified_habit)
         
     return {"habits": modified_habits}
-
-
 
 # get user specific habits but in more secured way
 # 1. Define your signing key (Must match the key used to create tokens)
