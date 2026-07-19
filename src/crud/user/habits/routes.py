@@ -204,6 +204,162 @@ async def get_user_habits(user_id: int, db: Session = Depends(get_db)):
         
     return {"habits": modified_habits}
 
+@user_habits_router.delete("/delete-securely/{habit_id}")
+async def delete_habit(habit_id: int, db: Session = Depends(get_db), user_id: int = Depends(get_current_user)):
+
+    # Check if user is authenticated
+    if user_id is None:
+        return {"error": "User not authenticated"}
+
+    habit = db.query(HabitModel).filter(HabitModel.id == habit_id).first()
+    
+    if not habit:
+        return {"error": "Habit not found"}
+    
+    db.delete(habit)
+    db.commit()
+    return {"message": "Habit deleted successfully"}
+
+@user_habits_router.put("/update-securely")
+async def update_habit(habit_data: HabitApiSchema, db: Session = Depends(get_db), user_id: int = Depends(get_current_user)):
+    # Check if user is authenticated
+    if user_id is None:
+        return {"error": "User not authenticated"}
+    
+    # If the user_id in the request body doesn't match the authenticated user, return an error
+    if user_id != habit_data.userId:
+        return {"error": "Unauthorized to update this habit"}
+
+    habit = db.query(HabitModel).filter(HabitModel.id == habit_data.id).first()
+    
+    if not habit:
+        return {"error": "Habit not found"}
+    # Update scalar fields only; nested relationships require separate handling
+    # use Pydantic v2's model_dump to get only set fields for partial update
+    update_data = habit_data.model_dump(exclude_unset=True)
+
+    for key, value in update_data.items():
+        # never overwrite the id
+        if key == "id":
+            continue
+
+        # direct scalar fields
+        if key in {"title", "description", "created_at", "updated_at", "duration"}:
+            setattr(habit, key, value)
+
+        elif key == "frequency":
+            # convert to enum safely
+            try:
+                setattr(habit, "frequency", HabitFrequency(value))
+            except Exception:
+                # ignore invalid enum values here; validation can handle it upstream
+                pass
+
+        elif key == "steps":
+            # Expect a list of step objects/dicts; replace existing collection
+            try:
+                # i want to add addintional steps data instead of clearing it first, so we will just append the new steps to the existing collection instead of clearing it first
+                
+                for s in (value or []):
+                    if hasattr(s, "dict"):
+                        s_dict = s.dict()
+                    elif isinstance(s, dict):
+                        s_dict = s
+                    else:
+                        try:
+                            s_dict = dict(s)
+                        except Exception:
+                            s_dict = {"value": str(s)}
+
+                    # i need to filter out any steps that have the same id as the incoming step, so we will just check if the step with the same id already exists in the habit.steps collection and if it does we will update it instead of appending a new one, and if it doesn't exist we will append a new one
+
+                    existing_step = next((step for step in habit.steps if step.id == s_dict.get("id")), None)
+                    if existing_step:
+                        # update existing step
+                        for k, v in s_dict.items():
+                            setattr(existing_step, k, v)
+                    else:
+                        # append new step
+                        db_step = _make_habit_step_from_dict(s_dict)
+                        habit.steps.append(db_step)
+
+            except Exception:
+                # fallback - assign new list if clear not supported
+                habit.steps = []
+
+        elif key == "measurement":
+            # measurement is represented as a (single) related object in the DB
+            try:
+                habit.measurement.clear()
+            except Exception:
+                habit.measurement = []
+
+            m = value
+            if m is not None:
+                if hasattr(m, "dict"):
+                    m_dict = m.dict()
+                elif isinstance(m, dict):
+                    m_dict = m
+                else:
+                    try:
+                        m_dict = dict(m)
+                    except Exception:
+                        m_dict = {"value": str(m)}
+
+                db_measure = _make_measurement_from_dict(m_dict)
+                habit.measurement.append(db_measure)
+
+        elif key in {"success_definition", "successDefinition"}:
+            sd_val = value
+            if sd_val is None:
+                # clear the relation
+                try:
+                    habit.success_definition = None
+                except Exception:
+                    pass
+            else:
+                if hasattr(sd_val, "dict"):
+                    sd = sd_val.dict()
+                elif isinstance(sd_val, dict):
+                    sd = sd_val
+                else:
+                    try:
+                        sd = dict(sd_val)
+                    except Exception:
+                        sd = None
+
+                if sd is None:
+                    # reset to defaults
+                    if habit.success_definition:
+                        habit.success_definition.success_definition = json.dumps({"enabled": False, "percentage": 0})
+                else:
+                    sd_clean = {
+                        "enabled": bool(sd.get("enabled", False)),
+                        "percentage": int(sd.get("percentage", 0)) if sd.get("percentage") is not None else 0,
+                    }
+                    if habit.success_definition:
+                        habit.success_definition.success_definition = json.dumps(sd_clean)
+                    else:
+                        habit.success_definition = _make_success_from_dict(sd_clean)
+
+        else:
+            # fallback: try to set attribute if model has it
+            if hasattr(habit, key):
+                try:
+                    setattr(habit, key, value)
+                except Exception:
+                    # ignore anything we can't set directly
+                    pass
+
+    db.commit()
+    # refresh to bring ORM relationships up-to-date if caller needs them
+    try:
+        db.refresh(habit)
+    except Exception:
+        pass
+
+    return {"message": "Habit updated successfully"}
+
 # get user specific habits but in more secured way
 # 1. Define your signing key (Must match the key used to create tokens)
 # SECRET_KEY = "your-secret-key-must-be-long-enough-for-jwcrypto"
