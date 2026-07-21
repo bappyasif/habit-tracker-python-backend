@@ -14,7 +14,7 @@ user_daily_tracking_router = APIRouter(prefix="/user-habit-daily-tracking", tags
 async def user_daily_tracking_health_check():
     return {"status": "user-daily-tracking router is healthy"}
 
-@user_daily_tracking_router.get("/habit-timeline/{habit_id}")
+@user_daily_tracking_router.get("/timeline/{habit_id}")
 async def get_user_daily_tracking(habit_id: int, db: Session = Depends(get_db), user_id: int = Depends(get_current_user)):
     if user_id is None:
         return {"error": "User not authenticated"}
@@ -43,7 +43,7 @@ async def get_user_daily_tracking(habit_id: int, db: Session = Depends(get_db), 
 
     return {"daily_tracking_timeline": response}
 
-@user_daily_tracking_router.post("/habit-timeline")
+@user_daily_tracking_router.post("/timeline")
 async def create_user_daily_tracking(daily_tracking: DailyTrackingApiSchema, db: Session = Depends(get_db), user_id: int = Depends(get_current_user)):
 
     if user_id is None:
@@ -77,20 +77,23 @@ async def create_user_daily_tracking(daily_tracking: DailyTrackingApiSchema, db:
 
     return {"message": "Daily tracking entry created", "entry": resp}
 
-@user_daily_tracking_router.put("/habit-timeline/{tracking_id}")
+@user_daily_tracking_router.put("/timeline/{tracking_id}")
 async def update_user_daily_tracking(tracking_id: int, daily_tracking: DailyTrackingApiSchema, db: Session = Depends(get_db), user_id: int = Depends(get_current_user)):
 
     if user_id is None:
         return {"error": "User not authenticated"}
     
-    tracking_entry = db.query(DailyTrackingOfHabit).filter(DailyTrackingOfHabit.id == tracking_id).first()
-    if not tracking_entry:
+    # tracking_entry = db.query(DailyTrackingOfHabit).filter(DailyTrackingOfHabit.id == tracking_id).first()
+
+    tracking_entries = db.query(DailyTrackingOfHabit).filter(DailyTrackingOfHabit.habit_id == daily_tracking.habitId).all()
+
+    if not tracking_entries:
         return {"error": "No daily tracking entry found for the given ID"}
     
     # this piece confirms how to retrive only related dataStamped data from list  and later have to decide on which props to update based on the retrieved data
     filtered_entry = None
 
-    for entry in tracking_entry:
+    for entry in tracking_entries:
         if entry.date_stamp == daily_tracking.dateStamp.date():
             filtered_entry = entry
             break
@@ -100,7 +103,7 @@ async def update_user_daily_tracking(tracking_id: int, daily_tracking: DailyTrac
     filtered_entry.steps_completed = len(daily_tracking.completedSteps)
     filtered_entry.steps_total = daily_tracking.totalSteps
     filtered_entry.steps_completed_with_notes = [{"id": step.id, "notes": step.notes} for step in daily_tracking.completedSteps]
-    tracking_entry[tracking_entry.index(filtered_entry) -1] = filtered_entry
+    tracking_entries[tracking_entries.index(filtered_entry) -1] = filtered_entry
 
 
     if not filtered_entry:
@@ -114,4 +117,4 @@ async def update_user_daily_tracking(tracking_id: int, daily_tracking: DailyTrac
         print(e, "error>>><<>><<")
         return {"error": "Failed to update daily tracking entry"}
     
-    return {"message": "Daily tracking entry found", "entry": tracking_entry}
+    return {"message": "Daily tracking entries data", "entry": tracking_entries}
