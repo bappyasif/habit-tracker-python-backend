@@ -151,3 +151,7 @@ class UserAuthorizeRequest(BaseModel):
     email: str = Field(..., example="user@example.com")
     name: str
     image: Optional[str] = None
+
+class FcmUserDeviceToken(BaseModel):
+    fcm_token: str
+    device_type: str

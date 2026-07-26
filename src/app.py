@@ -8,6 +8,7 @@ from src.crud.user.routes import users_router
 from src.crud.user.authorize.routes import authorize_user_router
 from src.crud.user.habits.routes import user_habits_router
 from src.crud.user.habits.daily_tracking.routes import user_daily_tracking_router
+from src.crud.user.notifications.routes import notifications_router
 
 
 server = FastAPI(
@@ -47,6 +48,8 @@ server.include_router(users_router, prefix="/api/v1")
 server.include_router(authorize_user_router, prefix="/api/v1")
 server.include_router(user_habits_router, prefix="/api/v1")
 server.include_router(user_daily_tracking_router, prefix="/api/v1")
+
+server.include_router(notifications_router, prefix="/api/v1")
 
 # Health Check
 @server.get("/")
