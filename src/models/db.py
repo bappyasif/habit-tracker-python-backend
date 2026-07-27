@@ -174,3 +174,26 @@ class User(Base):
 
     # relationship to habits
     habits = relationship('Habit', backref='user', cascade='all, delete-orphan')
+
+    # relationship to device tokens
+    # device_tokens = relationship('FcmUserDeviceToken', back_populates='user', cascade='all, delete-orphan')
+
+# i want to keep track of my users FCM token and their device token
+class FcmUserDeviceToken(Base):
+    __tablename__ = 'fcm_user_device_token'
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    # FCM tokens can be long strings (often up to 255+ characters)
+    fcm_token = Column(String(512), unique=True, nullable=False)
+    
+    # Optional metadata: helpful to know if it's Chrome on Mac, Safari on iPhone, etc.
+    # device_type = Column(String(50), nullable=True) 
+    device_type = Column(String, nullable=True) 
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # relationship back to your User model
+    # user = relationship("User", back_populates="device_tokens")

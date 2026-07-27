@@ -47,15 +47,25 @@ async def authorize_user(payload: UserAuthorizeRequest, db: Session = Depends(ge
     # existing_user = db.query(User).filter_by(email=payload["email"]).first()
     existing_user = db.query(User).filter_by(email=payload.email).first()
 
-    print(f"Existing user: {existing_user}", existing_user.id)
+    print(f"Existing user: {existing_user}")
+
+    access_token = None
 
     if not existing_user:
-        new_user = User(email=payload["email"], name=payload["name"], image=payload["image"])
+        # new_user = User(email=payload["email"], name=payload["name"], image=payload["image"])
+        new_user = User(email=payload.email, name=payload.name, image=payload.image)
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
-    
-    access_token = create_access_token(existing_user.id)
+
+        access_token = create_access_token(new_user.id)
+        return {
+            "access_token": access_token, 
+            "token_type": "bearer", 
+            "user": new_user
+        }
+    else:
+        access_token = create_access_token(existing_user.id)
 
     return {
         "access_token": access_token, 
