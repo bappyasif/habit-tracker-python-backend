@@ -1,5 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+import firebase_admin
+from firebase_admin import credentials
+
 from src.crud.genai.routes import genai_router
 from src.crud.habits.routes import habits_router
 from src.crud.habits.weekly_timeline.routes import weekly_timeline_router
@@ -9,6 +13,9 @@ from src.crud.user.authorize.routes import authorize_user_router
 from src.crud.user.habits.routes import user_habits_router
 from src.crud.user.habits.daily_tracking.routes import user_daily_tracking_router
 from src.crud.user.notifications.routes import notifications_router
+
+cred = credentials.Certificate("./habitflow-developed-by-abappy-firebase-adminsdk-fbsvc-767604dbb4.json")
+firebase_admin.initialize_app(cred)
 
 
 server = FastAPI(

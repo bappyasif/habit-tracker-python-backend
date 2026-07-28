@@ -155,3 +155,7 @@ class UserAuthorizeRequest(BaseModel):
 class FcmUserDeviceToken(BaseModel):
     fcm_token: str
     device_type: str
+
+class UserPushNotificationRequest(BaseModel):
+    message_title: str
+    message_body: str

@@ -12,3 +12,5 @@ google-genai
 
 jwcrypto
 pydantic[email]
+
+firebase-admin
