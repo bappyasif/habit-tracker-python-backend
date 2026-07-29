@@ -4,10 +4,14 @@ from src.util.db import get_db
 from src.util.oauth2 import get_current_user
 from src.models.api import FcmUserDeviceToken
 from src.models.db import FcmUserDeviceToken as FcmUserDeviceTokenDbModel
-from src.util.push_notification import send_push_notification_to_all_user_devices
+from src.util.push_notification import send_push_notification_to_all_user_devices, test_direct_token_based_push_notification
 from src.models.api import UserPushNotificationRequest
 
 notifications_router = APIRouter(prefix="/notifications", tags=["notifications"])
+
+@notifications_router.post("/test-direct-push/{user_id}")
+async def test_direct_push(user_id: int, db: Session = Depends(get_db)):
+    return test_direct_token_based_push_notification(user_id, db)
 
 # lets create push notification endpoint for authorize user
 @notifications_router.post("/push-to-user-device-securely")
@@ -20,6 +24,8 @@ async def send_push_notification_to_user_device(payload: UserPushNotificationReq
     
     if payload.message_body is None:
         return {"error": "message_body is required"}
+    
+    print(f"--> DEBUG: Notification requested by verified user_id: {user_id}")
     
     return send_push_notification_to_all_user_devices(db, user_id, payload.message_title, payload.message_body)
 
