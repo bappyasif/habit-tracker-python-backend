@@ -4,7 +4,7 @@ from src.util.db import get_db
 from src.util.oauth2 import get_current_user
 from src.models.api import FcmUserDeviceToken
 from src.models.db import FcmUserDeviceToken as FcmUserDeviceTokenDbModel, UserNotification as UserNotificationDbModel
-from src.util.push_notification import send_push_notification_to_all_user_devices, test_direct_token_based_push_notification
+from src.util.push_notification import send_push_notification_to_all_user_devices, test_direct_token_based_push_notification, send_push_notification_to_users_devices_on_daily_completion, send_push_notification_to_user_devices_completing_one_habit_step
 from src.models.api import UserPushNotificationRequest
 
 notifications_router = APIRouter(prefix="/notifications", tags=["notifications"])
@@ -16,7 +16,9 @@ async def get_notification_tray(db: Session = Depends(get_db), user_id: int = De
     
     try:
         notifications = db.query(UserNotificationDbModel).filter_by(user_id=user_id).all()
+        
         formatted_for_frontend = []
+        
         for notification in notifications:
             formatted_for_frontend.append({
                 "id": notification.id,
@@ -25,9 +27,43 @@ async def get_notification_tray(db: Session = Depends(get_db), user_id: int = De
                 "isRead": notification.is_read,
                 "createdAt": notification.created_at
             })
-        return {"notifications": notifications}
+        
+        return {"notifications": formatted_for_frontend}
     except Exception as e:
         return {"error": str(e)}
+    
+# @notifications_router.put("/mark-notification-as-read-securely")
+# async def mark_notification_as_read(notification_id: int, db: Session = Depends(get_db), user_id: int = Depends(get_current_user)):
+#     if user_id is None:
+#         return {"error": "User not authenticated"}
+    
+#     if notification_id is None:
+#         return {"error": "notification_id is required"}
+    
+#     try:
+#         notification = db.query(UserNotificationDbModel).filter_by(id=notification_id).first()
+#         if notification:
+#             notification.is_read = True
+#             db.commit()
+#             return {"message": "Notification marked as read"}
+#         else:
+#             return {"error": "Notification not found"}
+#     except Exception as e:
+#         return {"error": str(e)}
+
+@notifications_router.post("/daily-habit-step-completion-securely")
+async def daily_habit_step_completion(user_id: int, db: Session = Depends(get_db)):
+    if user_id is None:
+        return {"error": "User not authenticated"}
+    
+    return send_push_notification_to_user_devices_completing_one_habit_step(user_id, db)
+
+@notifications_router.post("/habit-daily-total-steps-completion-securely")
+async def daily_total_steps_completion(user_id: int = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user_id is None:
+        return {"error": "User not authenticated"}
+    
+    return send_push_notification_to_users_devices_on_daily_completion(user_id, db)
 
 @notifications_router.post("/test-direct-push/{user_id}")
 async def test_direct_push(user_id: int, db: Session = Depends(get_db)):

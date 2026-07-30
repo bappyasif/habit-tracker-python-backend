@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from datetime import date, datetime, time
 from src.models.db import FcmUserDeviceToken as FcmUserDeviceTokenDbModel, UserNotification as UserNotificationDbModel
 from firebase_admin import messaging
 
@@ -23,18 +24,57 @@ def test_direct_token_based_push_notification(user_id, db: Session):
         return {"status": "success", "firebase_response": response}
     except Exception as e:
         return {"status": "error", "error": str(e)}
+    
+def send_daily_completion_notification(user_id, db: Session):
+    today = date.today()
 
-def send_push_notification_to_all_user_devices(db: Session, user_id, message_title, message_body):
-    # save to user notifications 
+    # 1. Define the start and end timestamps for the current day
+    today_start = datetime.combine(date.today(), time.min) # e.g., 2026-07-30 00:00:00
+    today_end = datetime.combine(date.today(), time.max)     # e.g., 2026-07-30 23:59:59
+
+    # check if we already sent a notification for today
+    # existing_notification = db.query(UserNotificationDbModel).filter_by(user_id=user_id, created_at=today, title="All steps completed for today").first()
+    # existing_notification = db.query(UserNotificationDbModel).filter_by(user_id=user_id, created_at__gte=today_start, created_at__lte=today_end, title="All steps completed for today").first()
+
+    existing_notification = db.query(UserNotificationDbModel).filter(UserNotificationDbModel.user_id == user_id, UserNotificationDbModel.created_at.between(today_start, today_end), UserNotificationDbModel.title == "All steps completed for today").first()
+
+    print(f"existing_notification: {existing_notification}")
+
+    if existing_notification:
+        return {"status": "success", "firebase_response": "Notification already sent for today"}
+    
+    # now that we are sure its not sent yet lets add it to notifications table
     try:
+        message_title = "All steps completed for today"
+        message_body = "You have completed all your steps for today!"
+        
         new_notification = UserNotificationDbModel(user_id=user_id, title=message_title, body=message_body)
+        
         db.add(new_notification)
         db.commit()
     except Exception as e:
         print(f"Error saving notification to database: {e}")
         return {"error": str(e)}
 
-    db.add(new_notification)
+def send_push_notification_to_users_devices_on_daily_completion(user_id, db: Session):
+    send_daily_completion_notification(user_id, db)
+    send_push_notification_to_all_user_devices(db, user_id, "All steps completed for today", "You have completed all your steps for today!")
+
+def send_push_notification_to_user_devices_completing_one_habit_step(user_id, db: Session):
+    title = "Habit step successfully completed!"
+    body = "You have successfully completed a step in one of your habit!"
+    send_push_notification_to_all_user_devices(db, user_id, title, body)
+
+def send_push_notification_to_all_user_devices(db: Session, user_id, message_title, message_body):
+    # # save to user notifications 
+    # try:
+    #     new_notification = UserNotificationDbModel(user_id=user_id, title=message_title, body=message_body)
+    #     db.add(new_notification)
+    #     db.commit()
+    # except Exception as e:
+    #     print(f"Error saving notification to database: {e}")
+    #     return {"error": str(e)}
+
     # fetch all dvices tokens for this user
     user_tokens = db.query(FcmUserDeviceTokenDbModel).filter(FcmUserDeviceTokenDbModel.user_id == user_id).all()
 
