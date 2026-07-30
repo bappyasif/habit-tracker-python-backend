@@ -197,3 +197,13 @@ class FcmUserDeviceToken(Base):
 
     # relationship back to your User model
     # user = relationship("User", back_populates="device_tokens")
+
+class UserNotification(Base):
+    __tablename__ = 'user_notification'
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String, nullable=False)
+    body = Column(String, nullable=False)
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)

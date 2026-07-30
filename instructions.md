@@ -68,4 +68,7 @@ psql -U postgres -h localhost -c "DROP DATABASE IF EXISTS dbname;"
 Use IF EXISTS to avoid errors if the database doesn’t exist.
 `
 
+To drop a specefic table from a database
+psql -U postgres -h localhost -d dbname -c 'DROP TABLE IF EXISTS "UserNotification";'
+
 #installing packages using requirements.txt file : `pip install -r requirements.txt`

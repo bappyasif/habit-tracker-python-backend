@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from src.models.db import FcmUserDeviceToken as FcmUserDeviceTokenDbModel
+from src.models.db import FcmUserDeviceToken as FcmUserDeviceTokenDbModel, UserNotification as UserNotificationDbModel
 from firebase_admin import messaging
 
 def test_direct_token_based_push_notification(user_id, db: Session):
@@ -25,6 +25,16 @@ def test_direct_token_based_push_notification(user_id, db: Session):
         return {"status": "error", "error": str(e)}
 
 def send_push_notification_to_all_user_devices(db: Session, user_id, message_title, message_body):
+    # save to user notifications 
+    try:
+        new_notification = UserNotificationDbModel(user_id=user_id, title=message_title, body=message_body)
+        db.add(new_notification)
+        db.commit()
+    except Exception as e:
+        print(f"Error saving notification to database: {e}")
+        return {"error": str(e)}
+
+    db.add(new_notification)
     # fetch all dvices tokens for this user
     user_tokens = db.query(FcmUserDeviceTokenDbModel).filter(FcmUserDeviceTokenDbModel.user_id == user_id).all()
 
@@ -55,12 +65,3 @@ def send_push_notification_to_all_user_devices(db: Session, user_id, message_tit
                 print(f"Removing dead/unregistered token from database: {device_data.fcm_token}")
                 db.delete(device_data)
                 db.commit()
-        # except Exception as e:
-        #     print("Error sending message:", str(e))
-
-        #     # lets clean up if found error due to expired or unregistered device token
-        #     if {"InvalidRegistrationToken", "NotFound", "UNREGISTERED"} in str(e):
-        #         db.delete(device_data)
-        #         db.commit()
-
-    # return {"message": "Push notification sent successfully"}

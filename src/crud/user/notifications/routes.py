@@ -3,11 +3,31 @@ from sqlalchemy.orm import Session
 from src.util.db import get_db
 from src.util.oauth2 import get_current_user
 from src.models.api import FcmUserDeviceToken
-from src.models.db import FcmUserDeviceToken as FcmUserDeviceTokenDbModel
+from src.models.db import FcmUserDeviceToken as FcmUserDeviceTokenDbModel, UserNotification as UserNotificationDbModel
 from src.util.push_notification import send_push_notification_to_all_user_devices, test_direct_token_based_push_notification
 from src.models.api import UserPushNotificationRequest
 
 notifications_router = APIRouter(prefix="/notifications", tags=["notifications"])
+
+@notifications_router.get("/tray-list-securely")
+async def get_notification_tray(db: Session = Depends(get_db), user_id: int = Depends(get_current_user)):
+    if user_id is None:
+        return {"error": "User not authenticated"}
+    
+    try:
+        notifications = db.query(UserNotificationDbModel).filter_by(user_id=user_id).all()
+        formatted_for_frontend = []
+        for notification in notifications:
+            formatted_for_frontend.append({
+                "id": notification.id,
+                "title": notification.title,
+                "description": notification.body,
+                "isRead": notification.is_read,
+                "createdAt": notification.created_at
+            })
+        return {"notifications": notifications}
+    except Exception as e:
+        return {"error": str(e)}
 
 @notifications_router.post("/test-direct-push/{user_id}")
 async def test_direct_push(user_id: int, db: Session = Depends(get_db)):
