@@ -65,6 +65,11 @@ def send_push_notification_to_user_devices_completing_one_habit_step(user_id, db
     body = "You have successfully completed a step in one of your habit!"
     send_push_notification_to_all_user_devices(db, user_id, title, body)
 
+def send_push_notification_to_user_devices_updating_one_habit_step(user_id, db: Session):
+    title = "Habit step successfully Updated!"
+    body = "You have successfully updated a step in one of your habit!"
+    send_push_notification_to_all_user_devices(db, user_id, title, body)
+
 def send_push_notification_to_all_user_devices(db: Session, user_id, message_title, message_body):
     # # save to user notifications 
     # try:
