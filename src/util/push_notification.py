@@ -44,17 +44,18 @@ def send_daily_completion_notification(user_id, db: Session):
         return {"status": "success", "firebase_response": "Notification already sent for today"}
     
     # now that we are sure its not sent yet lets add it to notifications table
-    try:
-        message_title = "All steps completed for today"
-        message_body = "You have completed all your steps for today!"
+    add_notification_to_db(db, user_id, "All steps completed for today", "You have completed all your steps for today!")
+    # try:
+    #     message_title = "All steps completed for today"
+    #     message_body = "You have completed all your steps for today!"
         
-        new_notification = UserNotificationDbModel(user_id=user_id, title=message_title, body=message_body)
+    #     new_notification = UserNotificationDbModel(user_id=user_id, title=message_title, body=message_body)
         
-        db.add(new_notification)
-        db.commit()
-    except Exception as e:
-        print(f"Error saving notification to database: {e}")
-        return {"error": str(e)}
+    #     db.add(new_notification)
+    #     db.commit()
+    # except Exception as e:
+    #     print(f"Error saving notification to database: {e}")
+    #     return {"error": str(e)}
 
 def send_push_notification_to_users_devices_on_daily_completion(user_id, db: Session):
     send_daily_completion_notification(user_id, db)
@@ -69,6 +70,33 @@ def send_push_notification_to_user_devices_updating_one_habit_step(user_id, db: 
     title = "Habit step successfully Updated!"
     body = "You have successfully updated a step in one of your habit!"
     send_push_notification_to_all_user_devices(db, user_id, title, body)
+
+def send_push_notification_user_device_on_creating_new_habit(user_id, db: Session):
+    title = "New Habit Created!"
+    body = "You have successfully created a new habit!"
+    send_push_notification_to_all_user_devices(db, user_id, title, body)
+    add_notification_to_db(db, user_id, title, body)
+
+def send_push_notification_user_device_on_deleting_habit(user_id, db: Session):
+    title = "Habit Deleted!"
+    body = "You have successfully deleted a habit!"
+    send_push_notification_to_all_user_devices(db, user_id, title, body)
+    add_notification_to_db(db, user_id, title, body)
+
+def send_push_notification_user_device_on_updating_habit(user_id, db: Session):
+    title = "Habit Updated!"
+    body = "You have successfully updated a habit!"
+    send_push_notification_to_all_user_devices(db, user_id, title, body)
+    add_notification_to_db(db, user_id, title, body)
+
+def add_notification_to_db(db: Session, user_id, message_title, message_body):
+    try:
+        new_notification = UserNotificationDbModel(user_id=user_id, title=message_title, body=message_body)
+        db.add(new_notification)
+        db.commit()
+    except Exception as e:
+        print(f"Error saving notification to database: {e}")
+        return {"error": str(e)}
 
 def send_push_notification_to_all_user_devices(db: Session, user_id, message_title, message_body):
     # # save to user notifications 

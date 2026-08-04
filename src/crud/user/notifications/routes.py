@@ -4,7 +4,7 @@ from src.util.db import get_db
 from src.util.oauth2 import get_current_user
 from src.models.api import FcmUserDeviceToken
 from src.models.db import FcmUserDeviceToken as FcmUserDeviceTokenDbModel, UserNotification as UserNotificationDbModel
-from src.util.push_notification import send_push_notification_to_all_user_devices, test_direct_token_based_push_notification, send_push_notification_to_users_devices_on_daily_completion, send_push_notification_to_user_devices_completing_one_habit_step, send_push_notification_to_user_devices_updating_one_habit_step
+from src.util.push_notification import send_push_notification_to_all_user_devices, test_direct_token_based_push_notification, send_push_notification_to_users_devices_on_daily_completion, send_push_notification_to_user_devices_completing_one_habit_step, send_push_notification_to_user_devices_updating_one_habit_step, send_push_notification_user_device_on_creating_new_habit, send_push_notification_user_device_on_deleting_habit, send_push_notification_user_device_on_updating_habit
 from src.models.api import UserPushNotificationRequest
 
 notifications_router = APIRouter(prefix="/notifications", tags=["notifications"])
@@ -31,6 +31,29 @@ async def get_notification_tray(db: Session = Depends(get_db), user_id: int = De
         return {"notifications": formatted_for_frontend}
     except Exception as e:
         return {"error": str(e)}
+    
+# notification for created a new habit
+@notifications_router.post("/created-new-habit-securely")
+async def created_new_habit_notification(user_id: int = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user_id is None:
+        return {"error": "User not authenticated"}  
+
+    return send_push_notification_user_device_on_creating_new_habit(user_id, db)  
+
+# notification for updated a habit
+@notifications_router.put("/updated-habit-securely")
+async def notification_for_updated_habit(user_id: int = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user_id is None:
+        return {"error": "User not authenticated"}
+    
+    return send_push_notification_user_device_on_updating_habit(user_id, db)
+    
+@notifications_router.delete("/deleted-habit-securely")
+async def notification_for_deleted_habit(user_id: int = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user_id is None:
+        return {"error": "User not authenticated"}
+    
+    return send_push_notification_user_device_on_deleting_habit(user_id, db)
     
 @notifications_router.put("/mark-notification-as-read-securely/{notification_id}")
 async def mark_notification_as_read(notification_id: int, db: Session = Depends(get_db), user_id: int = Depends(get_current_user)):
