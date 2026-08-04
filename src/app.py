@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import os
 
 import firebase_admin
 from firebase_admin import credentials
@@ -14,7 +15,14 @@ from src.crud.user.habits.routes import user_habits_router
 from src.crud.user.habits.daily_tracking.routes import user_daily_tracking_router
 from src.crud.user.notifications.routes import notifications_router
 
-cred = credentials.Certificate("./habitflow-developed-by-abappy-firebase-adminsdk-fbsvc-767604dbb4.json")
+# Check if the GitHub Actions CI generated file exists, otherwise use local file name
+if os.path.exists("serviceAccountKey.json"):
+    cred_path = "serviceAccountKey.json"
+else:
+    cred_path = "./habitflow-developed-by-abappy-firebase-adminsdk-fbsvc-767604dbb4.json"
+
+# cred = credentials.Certificate("./habitflow-developed-by-abappy-firebase-adminsdk-fbsvc-767604dbb4.json")
+cred = credentials.Certificate(cred_path)
 firebase_admin.initialize_app(cred)
 
 
