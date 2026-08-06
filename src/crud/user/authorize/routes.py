@@ -3,12 +3,11 @@ from sqlalchemy.orm import Session
 from src.util.db import get_db
 from src.models.db import User
 from src.models.api import UserAuthorizeRequest
-import json
 from datetime import datetime, timedelta, timezone
-from fastapi.security import OAuth2PasswordBearer
 from jwcrypto import jwt, jwk
 import base64
 from src.util.oauth2 import create_access_token
+from src.util.email_service import send_welcome_email
 
 authorize_user_router = APIRouter(prefix="/user-authorize", tags=["authorize"])
 
@@ -30,21 +29,11 @@ async def get_authorized_user_by_email(email: str, db: Session = Depends(get_db)
     # Return the user information
     return {"user": user}
 
-    # Here you would typically query your database to find the user by email.
-    # For demonstration purposes, we'll return a mock response.
-    # mock_user = {
-    #     "email": email,
-    #     "name": "John Doe",
-    #     "authorized": True
-    # }
-    # return {"user": mock_user}
-
 @authorize_user_router.post("/with-jwt")
 async def authorize_user(payload: UserAuthorizeRequest, db: Session = Depends(get_db)):
     print(f"Authorizing user: {payload}")
 
     # Check if the user already exists in the database
-    # existing_user = db.query(User).filter_by(email=payload["email"]).first()
     existing_user = db.query(User).filter_by(email=payload.email).first()
 
     print(f"Existing user: {existing_user}")
@@ -52,13 +41,15 @@ async def authorize_user(payload: UserAuthorizeRequest, db: Session = Depends(ge
     access_token = None
 
     if not existing_user:
-        # new_user = User(email=payload["email"], name=payload["name"], image=payload["image"])
         new_user = User(email=payload.email, name=payload.name, image=payload.image)
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
 
         access_token = create_access_token(new_user.id)
+        # sending welcome email
+        send_welcome_email(new_user.email, new_user.name)
+                
         return {
             "access_token": access_token, 
             "token_type": "bearer", 
@@ -78,12 +69,6 @@ async def authorize_user(payload: UserAuthorizeRequest, db: Session = Depends(ge
 async def authorize_user(payload: UserAuthorizeRequest, db: Session = Depends(get_db)):
     print(f"Authorizing user: {payload}")
 
-    # Check if the user already exists in the database
-    # existing_user = db.query(User).filter_by(email=payload["email"]).first()
-    # Change this:
-# existing_user = db.query(User).filter_by(email=payload["email"]).first()
-
-# To this:
     existing_user = db.query(User).filter_by(email=payload.email).first()
 
     print(f"Existing user: {existing_user}", existing_user.id)
@@ -104,7 +89,7 @@ async def authorize_user(payload: UserAuthorizeRequest, db: Session = Depends(ge
     # Generate the signed token using JWCrypto
     # (Ensure SECRET_KEY_STRING matches the key used in your token verification script)
     SECRET_KEY_STRING = "your-super-long-and-secure-secret-key-32-chars!!"
-    # signing_key = jwk.JWK(kty='oct', k=SECRET_KEY_STRING.encode('utf-8'))
+
     # 1. Encode the plain text string to base64url bytes
     b64_key = base64.urlsafe_b64encode(SECRET_KEY_STRING.encode('utf-8')).decode('utf-8')
 
@@ -149,41 +134,3 @@ async def authorize_user(payload: dict, db: Session = Depends(get_db)):
     db.commit()
 
     return {"message": "User authorized successfully", "user": new_user}
-
-
-# @authorize_user_router.post("/")
-# async def authorize_user(user: dict, db: Session = Depends(get_db)):
-#     print(f"Authorizing user: {user}")
-
-#     # Here you would typically save the user to your database and perform any necessary authorization logic.
-#     # For demonstration purposes, we'll return a mock response.
-#     # mock_response = {
-#     #     "message": "User authorized successfully",
-#     #     "user": user
-#     # }
-
-#     # return mock_response
-
-#     # Check if the user already exists in the database
-#     existing_user = db.query(User).filter_by(email=user["email"]).first()
-#     print(f"Existing user: {existing_user}", existing_user.id)
-#     # Replace your existing_user line with this:
-#     # existing_user = db.query(User.id).filter(User.email == user["email"]).first()
-#     if existing_user:
-#         return {"msg": "User already exists", "user": existing_user}
-
-#     # Create a new user in the database
-#     new_user = User(email=user["email"], name=user["name"], image=user["image"])
-#     db.add(new_user)
-#     db.commit()
-
-#     return {"message": "User authorized successfully", "user": new_user}
-    
-#     # Here you would typically save the user to your database and perform any necessary authorization logic.
-#     # For demonstration purposes, we'll return a mock response.
-#     # mock_response = {
-#     #     "message": "User authorized successfully",
-#     #     "user": user
-#     # }
-
-#     # return mock_response
