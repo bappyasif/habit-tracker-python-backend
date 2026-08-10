@@ -5,13 +5,15 @@ from jwcrypto import jwt, jwk
 from datetime import datetime, timedelta, timezone
 import time
 import base64
+import os
 
 # 1. Point this to your existing login/token route
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="user-authorize/with-jwt")
 
 # 2. Set up your secret key using jwcrypto format
 # (Ensure this matches the key you used to sign the token during login)
-SECRET_KEY_STRING = "your-super-long-and-secure-secret-key-32-chars!!"
+# SECRET_KEY_STRING = "your-super-long-and-secure-secret-key-32-chars!!"
+SECRET_KEY_STRING = os.getenv("JWT_SECRET_KEY")
 
 
 # 1. Encode the plain text string to base64url bytes

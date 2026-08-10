@@ -16,14 +16,31 @@ from src.crud.user.habits.daily_tracking.routes import user_daily_tracking_route
 from src.crud.user.notifications.routes import notifications_router
 
 # Check if the GitHub Actions CI generated file exists, otherwise use local file name
-if os.path.exists("serviceAccountKey.json"):
-    cred_path = "serviceAccountKey.json"
-else:
-    cred_path = "./habitflow-developed-by-abappy-firebase-adminsdk-fbsvc-767604dbb4.json"
+# if os.path.exists("serviceAccountKey.json"):
+#     cred_path = "serviceAccountKey.json"
+# else:
+#     cred_path = "./habitflow-developed-by-abappy-firebase-adminsdk-fbsvc-767604dbb4.json"
 
 # cred = credentials.Certificate("./habitflow-developed-by-abappy-firebase-adminsdk-fbsvc-767604dbb4.json")
-cred = credentials.Certificate(cred_path)
-firebase_admin.initialize_app(cred)
+# cred = credentials.Certificate(cred_path)
+# firebase_admin.initialize_app(cred)
+
+cred_path = "./habitflow-developed-by-abappy-firebase-adminsdk-fbsvc-767604dbb4.json"
+
+# If the local JSON file doesn't exist (like on Render), generate it from the environment variable
+if not os.path.exists(cred_path):
+    json_secret = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
+    if json_secret:
+        # Write the secret string to the file path your code expects
+        with open(cred_path, "w", encoding="utf-8") as f:
+            f.write(json_secret)
+
+# Now initialize firebase normally
+if os.path.exists(cred_path):
+    cred = credentials.Certificate(cred_path)
+    firebase_admin.initialize_app(cred)
+else:
+    raise FileNotFoundError("Firebase service account credentials could not be found.")
 
 
 server = FastAPI(
@@ -33,7 +50,7 @@ server = FastAPI(
 )
 
 # CORS
-origins = ["/localhost", "http://localhost:3000", "http://localhost:8000"]
+origins = ["/localhost", "http://localhost:3000", "http://localhost:8000", "https://habit-tracker-phi-rouge.vercel.app/"]
 
 server.add_middleware(
     CORSMiddleware,
