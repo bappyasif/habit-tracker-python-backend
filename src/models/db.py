@@ -207,3 +207,11 @@ class UserNotification(Base):
     body = Column(String, nullable=False)
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class UserSettings(Base):
+    __tablename__ = 'user_settings'
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
+    settings = Column(JSON, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)

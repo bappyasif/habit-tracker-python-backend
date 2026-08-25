@@ -14,6 +14,7 @@ from src.crud.user.authorize.routes import authorize_user_router
 from src.crud.user.habits.routes import user_habits_router
 from src.crud.user.habits.daily_tracking.routes import user_daily_tracking_router
 from src.crud.user.notifications.routes import notifications_router
+from src.crud.user.setings.routes import settings_router
 
 # Check if the GitHub Actions CI generated file exists, otherwise use local file name
 # if os.path.exists("serviceAccountKey.json"):
@@ -83,6 +84,8 @@ server.include_router(user_habits_router, prefix="/api/v1")
 server.include_router(user_daily_tracking_router, prefix="/api/v1")
 
 server.include_router(notifications_router, prefix="/api/v1")
+
+server.include_router(settings_router, prefix="/api/v1")
 
 # Health Check
 @server.get("/")

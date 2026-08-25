@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, BeforeValidator
 from typing import Literal, Optional, List
 from datetime import datetime
+from typing import Annotated
 
 
 class HabitMeasurement(BaseModel):
@@ -159,3 +160,14 @@ class FcmUserDeviceToken(BaseModel):
 class UserPushNotificationRequest(BaseModel):
     message_title: str
     message_body: str
+
+# Helper to normalize incoming data ("true", "false", True, False) into an actual Boolean
+def parse_flexible_bool(v):
+    if isinstance(v, str):
+        return v.lower() == "true"
+    return bool(v)
+
+FlexibleBool = Annotated[bool, BeforeValidator(parse_flexible_bool)]    
+
+class UserSettingsRequest(BaseModel):
+    email_permission: FlexibleBool  # Accepts true, false, "true", or "false"
