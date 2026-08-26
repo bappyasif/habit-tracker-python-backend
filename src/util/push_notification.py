@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from datetime import date, datetime, time
-from src.models.db import FcmUserDeviceToken as FcmUserDeviceTokenDbModel, UserNotification as UserNotificationDbModel, User
+from src.models.db import FcmUserDeviceToken as FcmUserDeviceTokenDbModel, UserNotification as UserNotificationDbModel, User, UserSettings
 from firebase_admin import messaging
 from src.util.email_service import send_habit_completion_email, send_habit_deleted_email
 
@@ -88,11 +88,18 @@ def send_push_notification_user_device_on_updating_habit(user_id, db: Session):
     send_push_notification_to_all_user_devices(db, user_id, title, body)
     add_notification_to_db(db, user_id, title, body)
 
+def check_user_permission_for_emails_push_notifications(user_id, db: Session):
+    user_settings = db.query(UserSettings).filter_by(user_id=user_id).first()
+    return user_settings.settings["send_emails_notifications"]
+
 def add_notification_to_db(db: Session, user_id, message_title, message_body):
     try:
-        new_notification = UserNotificationDbModel(user_id=user_id, title=message_title, body=message_body)
-        db.add(new_notification)
-        db.commit()
+        if check_user_permission_for_emails_push_notifications(user_id, db):
+            new_notification = UserNotificationDbModel(user_id=user_id, title=message_title, body=message_body)
+            db.add(new_notification)
+            db.commit()
+        else:
+            print("User has disabled email notifications")
     except Exception as e:
         print(f"Error saving notification to database: {e}")
         return {"error": str(e)}
