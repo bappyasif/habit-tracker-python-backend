@@ -5,7 +5,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from src.util.db import get_db
 from src.util.oauth2 import get_current_user
 
-from src.models.db import UserSettings
+from src.models.db import UserSettings, User
 from src.models.api import UserSettingsRequest
 
 settings_router = APIRouter(prefix="/settings", tags=["settings"])
@@ -14,6 +14,22 @@ settings_router = APIRouter(prefix="/settings", tags=["settings"])
 @settings_router.get("/health")
 async def settings_health_check():
     return {"status": "settings router is healthy"}
+
+@settings_router.delete("/delete-user-account-securely")
+async def delete_user_account(user_id: int = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user_id is None:
+        return {"error": "User not authenticated"}
+    
+    try:
+        core_user = db.query(User).filter(User.id == user_id).first()
+        if core_user is None:
+            return {"error": "User not found"}
+        
+        db.delete(core_user)
+        db.commit()
+        return {"message": "User account deleted successfully"}
+    except Exception as e:
+        return {"error": str(e)}
 
 @settings_router.put("/toggle-send-emails-notifications-securely")
 async def toggle_send_emails_notifications( payload: UserSettingsRequest, user_id: int = Depends(get_current_user), db: Session = Depends(get_db)):
