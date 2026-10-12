@@ -12,7 +12,6 @@ class HabitMeasurement(BaseModel):
 class HabitStep(BaseModel):
     id: Optional[str]
     title: str
-    # time: Optional[datetime] = None
     time: Optional[str]
     completed: Optional[bool] = False
     notes: Optional[str] = None
@@ -28,17 +27,10 @@ class Habit(BaseModel):
     id: Optional[str] = None
     title: str
     description: Optional[str] = None
-    # created_at: str
-    # updated_at: str
     duration: Optional[int] = None
     steps: List[HabitStep] = []
     measurement: Optional[HabitMeasurement] = None
-    # this needs to be on Habit dbd model not so much so for API schema
-    # successDefinition: HabitSuccess = HabitSuccess(enabled=False, percentage=0)
     frequency: Literal["daily", "weekly", "monthly", "yearly"]
-    # createdAt: Optional[datetime] = None
-    # currentStreak: Optional[int] = 0
-    # totalCompleted: Optional[int] = 0
 
 
 # Habit update schema for partial updates
@@ -51,19 +43,6 @@ class HabitUpdate(BaseModel):
     measurement: Optional[HabitMeasurement] = None
     frequency: Optional[Literal["daily", "weekly", "monthly", "yearly"]] = None
     notes: Optional[str] = None
-
-
-
-# {
-#         habitId: number | string,
-#         weeks: {
-#             weekStart: Date,
-#             weekEnd: Date,
-#             totalCompleted: number,
-#             totalSteps: number,
-#             percentile: number, // 0-100 percentage
-#         }[]
-#     }
 
 
 class WeekTracking(BaseModel):
@@ -121,10 +100,6 @@ class WeeklySummaryResponse(BaseModel):
     response: SummaryResponse
 
 
-# class WeeklySummaryResponse(BaseModel):
-#     response: dict[str, str] = {"summary": ""}
-
-
 class DailyHabitAiInferenceRequest(BaseModel):
     hobby: str
     description: str
@@ -144,11 +119,7 @@ class DailyHabitAiInferenceResponse(BaseModel):
     response: InferenceResponseData
 
 
-# class DailyHabitAiInferenceResponse(BaseModel):
-#     response: dict
-
 class UserAuthorizeRequest(BaseModel):
-    # email: EmailStr
     email: str = Field(..., example="user@example.com")
     name: str
     image: Optional[str] = None

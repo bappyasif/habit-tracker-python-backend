@@ -61,31 +61,3 @@ async def toggle_send_emails_notifications( payload: UserSettingsRequest, user_i
     print(f'--> DEBUG: User settings updated: {user.settings}')
     
     return {"message": "Email notifications updated"}
-
-    # if user_id is None:
-    #     return {"error": "User not authenticated"}
-    
-    # user = db.query(UserSettings).filter_by(user_id=user_id).first()
-
-    # if user is None:
-    #     # lets create a new user settings row
-    #     user_settings = UserSettings(user_id=user_id, settings={"send_emails_notifications": True})
-    #     db.add(user_settings)
-    #     db.commit()
-    #     user = db.query(UserSettings).filter_by(user_id=user_id).first()
-    #     print(f'--> DEBUG: User settings created: {user.settings}')
-    #     return {"message": "Email notifications defaulted to on"}
-    
-    # print(f'--> DEBUG: User settings found: {user.settings}')
-
-    # converted_email_permission = True if payload.email_permission == "true" else False
-
-    # print(f'--> DEBUG: Converted email permission: {converted_email_permission}')
-    
-    # # user.settings["send_emails_notifications"] = not user.settings["send_emails_notifications"]
-    # user.settings["send_emails_notifications"] = converted_email_permission
-    # db.commit()
-    
-    # print(f'--> DEBUG: User settings updated: {user.settings}')
-
-    # return {"message": "Email notifications toggled"}

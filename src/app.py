@@ -16,16 +16,6 @@ from src.crud.user.habits.daily_tracking.routes import user_daily_tracking_route
 from src.crud.user.notifications.routes import notifications_router
 from src.crud.user.setings.routes import settings_router
 
-# Check if the GitHub Actions CI generated file exists, otherwise use local file name
-# if os.path.exists("serviceAccountKey.json"):
-#     cred_path = "serviceAccountKey.json"
-# else:
-#     cred_path = "./habitflow-developed-by-abappy-firebase-adminsdk-fbsvc-767604dbb4.json"
-
-# cred = credentials.Certificate("./habitflow-developed-by-abappy-firebase-adminsdk-fbsvc-767604dbb4.json")
-# cred = credentials.Certificate(cred_path)
-# firebase_admin.initialize_app(cred)
-
 cred_path = "./habitflow-developed-by-abappy-firebase-adminsdk-fbsvc-767604dbb4.json"
 
 # If the local JSON file doesn't exist (like on Render), generate it from the environment variable
@@ -67,8 +57,6 @@ from src.util.db import create_tables
 create_tables()
 
 # Routes
-# server.include_router(genai_router)
-
 # Versioned Routes
 server.include_router(genai_router, prefix="/api/v1")
 
