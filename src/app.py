@@ -40,7 +40,7 @@ server = FastAPI(
 
 # CORS
 # no trailing slashes or it will fail on live environment
-origins = ["/localhost", "http://localhost:3000", "http://localhost:8000", "https://habit-tracker-phi-rouge.vercel.app"]
+origins = ["/localhost", "http://localhost:3000", "http://localhost:8000", "https://habit-tracker-phi-rouge.vercel.app", "https://habit-tracker-python-backend.onrender.com"]
 
 server.add_middleware(
     CORSMiddleware,
