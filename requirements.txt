@@ -2,7 +2,9 @@ fastapi
 uvicorn
 
 sqlalchemy
-psycopg2-binary
+# psycopg2[binary]
+# psycopg2-binary
+psycopg[binary]
 # pyjwt
 # passlib
 # python-multipart

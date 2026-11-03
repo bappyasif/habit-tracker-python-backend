@@ -15,7 +15,8 @@ if environment == "development":
     db_port = os.getenv("DB_PORT", "5432")
     db_name = os.getenv("DB_NAME", "postgres")
     
-    db_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+    # db_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+    db_url = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
     print(f"--> [DEV MODE] Connecting to Local PostgreSQL at {db_host}:{db_port}/{db_name}")
 
 else:
