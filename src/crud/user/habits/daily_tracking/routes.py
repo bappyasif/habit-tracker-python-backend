@@ -79,40 +79,88 @@ async def create_user_daily_tracking(daily_tracking: DailyTrackingApiSchema, db:
 
 @user_daily_tracking_router.put("/timeline/{tracking_id}")
 async def update_user_daily_tracking(tracking_id: int, daily_tracking: DailyTrackingApiSchema, db: Session = Depends(get_db), user_id: int = Depends(get_current_user)):
+    # print("daily_tracking>>><<>><<", daily_tracking)
 
     if user_id is None:
         return {"error": "User not authenticated"}
 
-    tracking_entries = db.query(DailyTrackingOfHabit).filter(DailyTrackingOfHabit.habit_id == tracking_id).all()
+        # 1. Try to find the entry for this specific habit AND this specific date
+    # This is more efficient than getting .all() and looping in Python
+    filtered_entry = db.query(DailyTrackingOfHabit).filter(
+        DailyTrackingOfHabit.habit_id == tracking_id,
+        DailyTrackingOfHabit.date_stamp == daily_tracking.dateStamp.date()
+    ).first()
 
-    if not tracking_entries:
-        return {"error": "No daily tracking entry found for the given ID"}
-    
-    # this piece confirms how to retrive only related dataStamped data from list  and later have to decide on which props to update based on the retrieved data
-    filtered_entry = None
+    # 2. If it doesn't exist, CREATE it instead of returning an error
+    if not filtered_entry:
+        print("No entry found for today, creating new record...")
+        filtered_entry = DailyTrackingOfHabit(
+            habit_id=tracking_id,
+            date_stamp=daily_tracking.dateStamp.date(),
+            steps_completed=0,
+            steps_total=0,
+            steps_completed_with_notes=[]
+        )
+        db.add(filtered_entry)
 
-    for entry in tracking_entries:
-        if entry.date_stamp == daily_tracking.dateStamp.date():
-            filtered_entry = entry
-            break
-
-    # lets update filtered entry with recieved data and update completed steps ids based on recieved data
-
+    # 3. Now update the fields (works for both new and existing records)
     filtered_entry.steps_completed = len(daily_tracking.completedSteps)
     filtered_entry.steps_total = daily_tracking.totalSteps
-    filtered_entry.steps_completed_with_notes = [{"id": step.id, "notes": step.notes} for step in daily_tracking.completedSteps]
-    tracking_entries[tracking_entries.index(filtered_entry) -1] = filtered_entry
-
-
-    if not filtered_entry:
-        return {"error": "Daily tracking entry not found for the given date"}
+    filtered_entry.steps_completed_with_notes = [
+        {"id": step.id, "notes": step.notes} for step in daily_tracking.completedSteps
+    ]
 
     try:
+        # print("Updating filtered_entry>>><<>><<", filtered_entry)
         db.commit()
         db.refresh(filtered_entry)
     except Exception as e:
         db.rollback()
-        print(e, "error>>><<>><<")
+        print(f"Error: {e}")
         return {"error": "Failed to update daily tracking entry"}
+
+
+# @user_daily_tracking_router.put("/timeline/{tracking_id}")
+# async def update_user_daily_tracking(tracking_id: int, daily_tracking: DailyTrackingApiSchema, db: Session = Depends(get_db), user_id: int = Depends(get_current_user)):
+
+#     print("daily_tracking>>><<>><<", daily_tracking)
+
+#     if user_id is None:
+#         return {"error": "User not authenticated"}
+
+#     tracking_entries = db.query(DailyTrackingOfHabit).filter(DailyTrackingOfHabit.habit_id == tracking_id).all()
+
+#     if not tracking_entries:
+#         return {"error": "No daily tracking entry found for the given ID"}
     
-    return {"message": "Daily tracking entries data", "entry": tracking_entries}
+#     # this piece confirms how to retrive only related dataStamped data from list  and later have to decide on which props to update based on the retrieved data
+#     filtered_entry = None
+
+#     for entry in tracking_entries:
+#         if entry.date_stamp == daily_tracking.dateStamp.date():
+#             filtered_entry = entry
+#             break
+
+#     # lets update filtered entry with recieved data and update completed steps ids based on recieved data
+
+#     filtered_entry.steps_completed = len(daily_tracking.completedSteps)
+#     filtered_entry.steps_total = daily_tracking.totalSteps
+#     filtered_entry.steps_completed_with_notes = [{"id": step.id, "notes": step.notes} for step in daily_tracking.completedSteps]
+#     tracking_entries[tracking_entries.index(filtered_entry) -1] = filtered_entry
+
+
+#     if not filtered_entry:
+#         return {"error": "Daily tracking entry not found for the given date"}
+    
+#     # db.add(filtered_entry)
+#     print("filtered_entry>>><<>><<", filtered_entry)
+
+#     try:
+#         db.commit()
+#         db.refresh(filtered_entry)
+#     except Exception as e:
+#         db.rollback()
+#         print(e, "error>>><<>><<")
+#         return {"error": "Failed to update daily tracking entry"}
+    
+#     return {"message": "Daily tracking entries data", "entry": tracking_entries}
