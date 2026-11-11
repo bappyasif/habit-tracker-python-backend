@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from src.util.db import get_db
 from src.models.db import Habit as HabitModel
@@ -221,11 +221,19 @@ async def update_habit(habit_data: HabitApiSchema, db: Session = Depends(get_db)
     if user_id is None:
         return {"error": "User not authenticated"}
     
-    # If the user_id in the request body doesn't match the authenticated user, return an error
     if user_id != habit_data.userId:
-        return {"error": "Unauthorized to update this habit"}
+        raise HTTPException(status_code=403, detail="Unauthorized to update this habit")
+    
+    # If the user_id in the request body doesn't match the authenticated user, return an error
+    # if user_id != habit_data.userId:
+    #     return {"error": "Unauthorized to update this habit"}
+    
+    print("incoming steps:", habit_data.steps)
 
     habit = db.query(HabitModel).filter(HabitModel.id == int(habit_data.id)).first()
+
+    if not habit:
+        raise HTTPException(status_code=404, detail="Habit not found")
     
     if not habit:
         return {"error": "Habit not found"}
@@ -250,57 +258,83 @@ async def update_habit(habit_data: HabitApiSchema, db: Session = Depends(get_db)
                 # ignore invalid enum values here; validation can handle it upstream
                 pass
 
-        elif key == "steps":
-            # Expect a list of step objects/dicts; replace existing collection
-            try:
-                # i want to add addintional steps data instead of clearing it first, so we will just append the new steps to the existing collection instead of clearing it first
+        # elif key == "steps":
+        #     # Expect a list of step objects/dicts; replace existing collection
+        #     try:
+        #         # i want to add addintional steps data instead of clearing it first, so we will just append the new steps to the existing collection instead of clearing it first
                 
-                for s in (value or []):
-                    if hasattr(s, "dict"):
-                        s_dict = s.dict()
-                    elif isinstance(s, dict):
-                        s_dict = s
-                    else:
-                        try:
-                            s_dict = dict(s)
-                        except Exception:
-                            s_dict = {"value": str(s)}
+        #         for s in (value or []):
+        #             if hasattr(s, "dict"):
+        #                 s_dict = s.dict()
+        #             elif isinstance(s, dict):
+        #                 s_dict = s
+        #             else:
+        #                 try:
+        #                     s_dict = dict(s)
+        #                 except Exception:
+        #                     s_dict = {"value": str(s)}
 
-                    # i need to filter out any steps that have the same id as the incoming step, so we will just check if the step with the same id already exists in the habit.steps collection and if it does we will update it instead of appending a new one, and if it doesn't exist we will append a new one
+        #             # i need to filter out any steps that have the same id as the incoming step, so we will just check if the step with the same id already exists in the habit.steps collection and if it does we will update it instead of appending a new one, and if it doesn't exist we will append a new one
 
-                    # existing_step = next((step for step in habit.steps if step.id == s_dict.get("id")), None)
-                    incoming_id = s_dict.get("id")
-                    existing_step = next(
-                        (step for step in habit.steps if str(step.id) == str(incoming_id)),
-                        None
-                    )
+        #             # existing_step = next((step for step in habit.steps if step.id == s_dict.get("id")), None)
+        #             incoming_id = s_dict.get("id")
+        #             existing_step = next(
+        #                 (step for step in habit.steps if str(step.id) == str(incoming_id)),
+        #                 None
+        #             )
                     
-                    if existing_step:
-                        # update existing step
-                        for k, v in s_dict.items():
-                            # if k == "time" and isinstance(v, str):
-                            #     v = parser.parse(v) 
-                            # setattr(existing_step, k, v)
+        #             if existing_step:
+        #                 # update existing step
+        #                 for k, v in s_dict.items():
+        #                     # if k == "time" and isinstance(v, str):
+        #                     #     v = parser.parse(v) 
+        #                     # setattr(existing_step, k, v)
 
-                            if k == "time" and isinstance(v, str):
-                                try:
-                                    # Replace 'Z' with '+00:00' so fromisoformat can read it
-                                    clean_date = v.replace('Z', '+00:00')
-                                    v = datetime.fromisoformat(clean_date)
-                                except ValueError:
-                                    # Fallback if the date format is totally wrong
-                                    continue 
+        #                     if k == "time" and isinstance(v, str):
+        #                         try:
+        #                             # Replace 'Z' with '+00:00' so fromisoformat can read it
+        #                             clean_date = v.replace('Z', '+00:00')
+        #                             v = datetime.fromisoformat(clean_date)
+        #                         except ValueError:
+        #                             # Fallback if the date format is totally wrong
+        #                             continue 
                                     
-                            if k != "id":
-                                setattr(existing_step, k, v)
-                    else:
-                        # append new step
-                        db_step = _make_habit_step_from_dict(s_dict)
-                        habit.steps.append(db_step)
+        #                     if k != "id":
+        #                         setattr(existing_step, k, v)
+        #             else:
+        #                 # append new step
+        #                 db_step = _make_habit_step_from_dict(s_dict)
+        #                 habit.steps.append(db_step)
 
-            except Exception:
-                # fallback - assign new list if clear not supported
-                habit.steps = []
+        #     except Exception:
+        #         # fallback - assign new list if clear not supported
+        #         habit.steps = []
+
+        elif key == "steps":
+            existing_by_id = {str(s.id): s for s in habit.steps}
+            incoming_ids = set()
+
+            for s in value or []:
+                s_dict = s.model_dump() if hasattr(s, "model_dump") else dict(s)
+                sid = str(s_dict.get("id"))
+                incoming_ids.add(sid)
+
+                t = s_dict.get("time")
+                if isinstance(t, str):
+                    s_dict["time"] = datetime.fromisoformat(t.replace("Z", "+00:00"))
+
+                step = existing_by_id.get(sid)
+                if step:
+                    for k, v in s_dict.items():
+                        if k != "id" and hasattr(step, k):
+                            setattr(step, k, v)
+                else:
+                    habit.steps.append(_make_habit_step_from_dict(s_dict))
+
+            # remove steps the client no longer has
+            for step in list(habit.steps):
+                if str(step.id) not in incoming_ids:
+                    habit.steps.remove(step)
 
         elif key == "measurement":
             # measurement is represented as a (single) related object in the DB
@@ -366,6 +400,7 @@ async def update_habit(habit_data: HabitApiSchema, db: Session = Depends(get_db)
                     # ignore anything we can't set directly
                     pass
 
+    print("steps now:", [(s.id, s.title, s.time) for s in habit.steps])
     db.commit()
     # refresh to bring ORM relationships up-to-date if caller needs them
     try:
