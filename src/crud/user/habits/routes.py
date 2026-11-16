@@ -4,7 +4,6 @@ from src.util.db import get_db
 from src.models.db import Habit as HabitModel
 import json
 from datetime import datetime
-# from dateutil import parser
 from src.util.oauth2 import get_current_user
 from src.models.api import Habit as HabitApiSchema
 from src.models.db import Habit as HabitModel, HabitStep as HabitStepModel, HabitMeasurement as HabitMeasurementModel, HabitSuccess as HabitSuccessModel, HabitFrequency
@@ -257,58 +256,6 @@ async def update_habit(habit_data: HabitApiSchema, db: Session = Depends(get_db)
             except Exception:
                 # ignore invalid enum values here; validation can handle it upstream
                 pass
-
-        # elif key == "steps":
-        #     # Expect a list of step objects/dicts; replace existing collection
-        #     try:
-        #         # i want to add addintional steps data instead of clearing it first, so we will just append the new steps to the existing collection instead of clearing it first
-                
-        #         for s in (value or []):
-        #             if hasattr(s, "dict"):
-        #                 s_dict = s.dict()
-        #             elif isinstance(s, dict):
-        #                 s_dict = s
-        #             else:
-        #                 try:
-        #                     s_dict = dict(s)
-        #                 except Exception:
-        #                     s_dict = {"value": str(s)}
-
-        #             # i need to filter out any steps that have the same id as the incoming step, so we will just check if the step with the same id already exists in the habit.steps collection and if it does we will update it instead of appending a new one, and if it doesn't exist we will append a new one
-
-        #             # existing_step = next((step for step in habit.steps if step.id == s_dict.get("id")), None)
-        #             incoming_id = s_dict.get("id")
-        #             existing_step = next(
-        #                 (step for step in habit.steps if str(step.id) == str(incoming_id)),
-        #                 None
-        #             )
-                    
-        #             if existing_step:
-        #                 # update existing step
-        #                 for k, v in s_dict.items():
-        #                     # if k == "time" and isinstance(v, str):
-        #                     #     v = parser.parse(v) 
-        #                     # setattr(existing_step, k, v)
-
-        #                     if k == "time" and isinstance(v, str):
-        #                         try:
-        #                             # Replace 'Z' with '+00:00' so fromisoformat can read it
-        #                             clean_date = v.replace('Z', '+00:00')
-        #                             v = datetime.fromisoformat(clean_date)
-        #                         except ValueError:
-        #                             # Fallback if the date format is totally wrong
-        #                             continue 
-                                    
-        #                     if k != "id":
-        #                         setattr(existing_step, k, v)
-        #             else:
-        #                 # append new step
-        #                 db_step = _make_habit_step_from_dict(s_dict)
-        #                 habit.steps.append(db_step)
-
-        #     except Exception:
-        #         # fallback - assign new list if clear not supported
-        #         habit.steps = []
 
         elif key == "steps":
             existing_by_id = {str(s.id): s for s in habit.steps}
